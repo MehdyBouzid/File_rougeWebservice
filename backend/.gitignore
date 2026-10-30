@@ -1,33 +1,23 @@
-HELP.md
-target/
-.mvn/wrapper/maven-wrapper.jar
-!**/src/main/**/target/
-!**/src/test/**/target/
+# Compilation
+/dist
+/node_modules
+/build
 
-### STS ###
-.apt_generated
-.classpath
-.factorypath
-.project
-.settings
-.springBeans
-.sts4-cache
+# Logs
+logs
+*.log
+npm-debug.log*
 
-### IntelliJ IDEA ###
-.idea
-*.iws
-*.iml
-*.ipr
+# Tests
+/coverage
 
-### NetBeans ###
-/nbproject/private/
-/nbbuild/
-/dist/
-/nbdist/
-/.nb-gradle/
-build/
-!**/src/main/**/build/
-!**/src/test/**/build/
+# Variables d'environnement : ne jamais commiter de valeurs sensibles
+.env
+.env.*
+!.env.example
 
-### VS Code ###
+# Systeme et IDE
+.DS_Store
+.idea/
 .vscode/
+*.iml
