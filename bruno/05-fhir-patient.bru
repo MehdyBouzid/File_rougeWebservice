@@ -1,0 +1,29 @@
+meta {
+  name: 05 API medicale publique (FHIR)
+  type: http
+  seq: 5
+}
+
+get {
+  url: https://hapi.fhir.org/baseR4/Patient?_count=1
+  body: none
+  auth: none
+}
+
+params:query {
+  _count: 1
+}
+
+headers {
+  Accept: application/fhir+json
+}
+
+tests {
+  test("statut 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("resourceType vaut Bundle", function() {
+    expect(res.getBody().resourceType).to.equal("Bundle");
+  });
+}

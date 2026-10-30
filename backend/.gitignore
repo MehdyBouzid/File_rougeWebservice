@@ -1,0 +1,23 @@
+# Compilation
+/dist
+/node_modules
+/build
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Tests
+/coverage
+
+# Variables d'environnement : ne jamais commiter de valeurs sensibles
+.env
+.env.*
+!.env.example
+
+# Systeme et IDE
+.DS_Store
+.idea/
+.vscode/
+*.iml

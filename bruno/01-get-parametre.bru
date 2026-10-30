@@ -1,0 +1,25 @@
+meta {
+  name: 01 GET avec parametre
+  type: http
+  seq: 1
+}
+
+get {
+  url: https://httpbin.org/get?patient=42
+  body: none
+  auth: none
+}
+
+params:query {
+  patient: 42
+}
+
+tests {
+  test("statut 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("args.patient vaut 42", function() {
+    expect(res.getBody().args.patient).to.equal("42");
+  });
+}

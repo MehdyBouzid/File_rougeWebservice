@@ -1,0 +1,31 @@
+meta {
+  name: 04 Negociation de contenu
+  type: http
+  seq: 4
+}
+
+get {
+  url: https://httpbin.org/image
+  body: none
+  auth: none
+}
+
+headers {
+  Accept: image/svg+xml
+}
+
+tests {
+  test("statut 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("Content-Type vaut image/svg+xml", function() {
+    expect(res.getHeader("content-type")).to.equal("image/svg+xml");
+  });
+}
+
+docs {
+  Test alternatif : remplacer le header `Accept` par `image/png`.
+  Resultat attendu : 200 avec `Content-Type: image/png`.
+  Variante PNG non encore confirmee dans Bruno.
+}

@@ -1,0 +1,12 @@
+# Systeme
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Secrets : ne jamais commiter de valeurs sensibles
+.env
+.env.*
+!.env.example
