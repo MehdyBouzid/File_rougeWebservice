@@ -1,0 +1,17 @@
+meta {
+  name: 03 Erreur 404
+  type: http
+  seq: 3
+}
+
+get {
+  url: https://httpbin.org/status/404
+  body: none
+  auth: none
+}
+
+tests {
+  test("statut 404", function() {
+    expect(res.getStatus()).to.equal(404);
+  });
+}
