@@ -1,0 +1,29 @@
+meta {
+  name: 02 POST avec JSON
+  type: http
+  seq: 2
+}
+
+post {
+  url: https://httpbin.org/post
+  body: json
+  auth: none
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {"frequenceCardiaque":72}
+}
+
+tests {
+  test("statut 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("json.frequenceCardiaque vaut 72", function() {
+    expect(res.getBody().json.frequenceCardiaque).to.equal(72);
+  });
+}
