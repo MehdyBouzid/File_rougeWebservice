@@ -1,42 +1,47 @@
-# Usage de l'IA
+# Usage de l’IA
 
-Ce fichier déclare comment nous avons utilisé L IA sur Veillo, et ce que nous en faisons. Il décrit l'usage de l'outil ci-dessous dans ce dépôt. Si d'autres membres du groupe utilisent d'autres outils, ils vont les ajouter
+Nous utilisons l’IA pour mieux comprendre les notions du cours, confronter nos choix et améliorer les documents de Veillo. Elle nous accompagne dans le travail ; les décisions restent celles de l’équipe.
 
-## 1. Outils utilisés
+## Outils utilisés
 
 - **Claude**
+- **Claude Code**
 
-## 2. Utilisations de l'IA
+Cette liste pourra être complétée si d’autres outils sont utilisés par les membres du groupe.
 
-### Compréhension et apprentissage
+## Apprentissage
 
-- expliquer des notions techniques ;
-- clarifier des concepts mal compris ;
-- comprendre le fonctionnement des technologies utilisées.
+Nous demandons à l’IA d’expliquer des notions techniques, de clarifier les concepts que nous comprenons mal et de nous aider à comprendre le fonctionnement des technologies utilisées.
 
-### Conception et choix techniques
+## Conception
 
-Nous avons surtout utilisé l'IA pour relire et vérifier la conception de notre base de données. Nous proposons d'abord notre MCD et nos raisonnements, puis nous demandons à l'IA de les examiner de façon critique : discuter nos choix de modélisation et leurs avantages et inconvénients, vérifier la cohérence des entités, des associations et des cardinalités, repérer des incohérences ou des règles métier oubliées, et voir si le modèle semble exploitable pour la future base de données et l'API. Ses remarques nous servent à confronter notre raisonnement et à mieux comprendre nos choix.
+Nous lui soumettons notre MCD et nos raisonnements pour obtenir une relecture critique. Cela nous aide à :
 
-Les réponses de l'IA sont des avis et des pistes de vérification, pas une preuve que le MCD est correct. L'IA n'a pas conçu ni validé définitivement notre modèle : les décisions finales sont prises par l'équipe et doivent respecter le sujet du formateur. Le développement de la base de données et de l'API n'a pas encore commencé.
+- vérifier la cohérence des entités, des associations et des cardinalités ;
+- repérer des incohérences ou des règles métier oubliées ;
+- discuter les avantages et les limites de nos choix de modélisation ;
+- examiner si le modèle convient à la future base de données et à l’API.
 
-### Documentation
+Ses remarques nous permettent de confronter notre raisonnement. Elles ne prouvent pas que le MCD est correct et ne remplacent pas notre validation du modèle. Ce travail porte sur la conception, pas sur une base de données ou une API métier déjà développées.
 
-- aide à la rédaction et à la structuration des documents Markdown (`README.md`, `docs/design.md`, `docs/http.md`) ;
-- amélioration de la clarté, de la cohérence et de la lisibilité ;
-- reformulation et organisation d'informations que nous avions déjà.
+## Documentation
 
-### Développement et vérification
+L’IA nous aide à rédiger et à structurer le [README](README.md), [docs/design.md](docs/design.md) et [docs/http.md](docs/http.md).
+
+Nous l’utilisons pour reformuler les informations que nous avons déjà, mieux les organiser et améliorer la clarté et la cohérence des documents.
+
+## Développement et TP1
 
 Claude Code a été utilisé pour :
 
-- installer et initialiser le projet backend NestJS, sans code métier ;
-- mettre en place l'architecture de dossiers du projet ;
-- pour le TP1 : vérifier les outils et exécuter les requêtes curl de l'exploration HTTP, créer la collection `bruno/` et le `.gitignore` racine.
+- installer et initialiser le backend NestJS, sans code métier ;
+- organiser les dossiers du projet ;
+- vérifier les outils et l’environnement du TP1 ;
+- exécuter les commandes curl de l’exploration HTTP ;
+- créer la collection Bruno dans `bruno/` et le `.gitignore` à la racine.
 
-## 3. Limites et vérification
+## Vérification et responsabilité
 
-- Les réponses de l'IA peuvent contenir des erreurs : nous les relisons et nous les vérifions.
-- Nous n'utilisons une proposition que si nous l'avons comprise.
-- Les décisions de conception, les décisions métier et le MCD restent sous la notre responsabilité
-- Les documents officiels du formateur restent la référence pour les exigences du projet.
+Les réponses de l’IA peuvent contenir des erreurs. Nous les relisons et les vérifions, et nous ne retenons une proposition que si nous l’avons comprise.
+
+Les choix techniques, le MCD et les décisions métier restent sous la responsabilité de l’équipe. Les consignes et les documents officiels du formateur restent notre référence.

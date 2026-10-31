@@ -1,109 +1,92 @@
-# Exploration HTTP avec curl
+# Exploration HTTP — TP1
 
-TP1 — prise en main des outils. Les requêtes ci-dessous ont été exécutées avec `curl 8.7.1` sur l'API publique [httpbin](https://httpbin.org), le 30 octobre 2026. Les codes et les en-têtes viennent des réponses réelles. Les corps de réponse sont raccourcis, et l'adresse IP renvoyée par httpbin a été retirée.
+## 1. Objectif
 
-L'option `-i` de curl affiche les en-têtes de la réponse avant le corps. Toutes les réponses sont en HTTP/2.
+Explorer les échanges HTTP avec curl et des API externes : paramètres, JSON, statuts et négociation de contenu. Ces exercices ne constituent pas une intégration métier de Veillo.
 
-## 1. GET avec paramètre de requête
+## 2. Requêtes réalisées
+
+Les appels à [httpbin](https://httpbin.org) ont été réalisés avec **curl 8.7.1**, en HTTP/2. Les résultats ci-dessous reprennent les réponses consignées ; ceux de HAPI FHIR proviennent du compte rendu historique Bruno.
+
+### GET avec paramètre
+
+`GET /get?patient=42` sur httpbin a renvoyé **200 OK**. La réponse contient `args.patient` égal à `"42"`, ce qui permet de vérifier la transmission du paramètre dans l’URL.
+
+### POST avec JSON
+
+`POST /post` sur httpbin a renvoyé **200 OK** après l’envoi de `{"frequenceCardiaque":72}` avec `Content-Type: application/json`. Le champ `json` contient l’objet décodé, tandis que `data` conserve le texte envoyé.
+
+### Réponse 404
+
+`GET /status/404` sur httpbin a renvoyé **404 Not Found**, avec un corps vide. Cette route produit volontairement le statut demandé : la requête a atteint le serveur, il ne s’agit pas d’une erreur réseau.
+
+### Négociation de contenu
+
+`GET /image` sur httpbin a renvoyé **200 OK** pour les deux valeurs de `Accept` testées :
+
+- `image/svg+xml` : réponse SVG de **8984 octets**.
+- `image/png` : réponse PNG de **8090 octets**.
+
+La même URL fournit une représentation différente selon le format demandé. À l’inverse, `https://httpbin.org/xml` renvoie du XML quel que soit `Accept` et n’illustre donc pas cette négociation.
+
+### Requête HAPI FHIR
+
+La collection Bruno interroge aussi `GET /baseR4/Patient?_count=1` sur le serveur public HAPI FHIR, avec `Accept: application/fhir+json`. Le compte rendu historique déclare une réponse **200 OK**, et la collection vérifie `resourceType === "Bundle"`.
+
+FHIR est un standard d’échange de données de santé. Cet exercice est distinct des appels httpbin et ne constitue pas une intégration FHIR dans Veillo.
+
+## 3. Notions HTTP
+
+- **GET et POST** : les GET lisent ici une ressource sans envoyer de corps ; le POST transmet un corps JSON.
+- **Paramètres** : après `?`, ils apportent des informations au serveur, comme `patient=42` ou `_count=1`.
+- **Statuts** : `200 OK` indique ici une requête réussie ; `404 Not Found` indique une ressource introuvable, simulée volontairement dans cet exercice.
+- **Content-Type** : décrit le format du corps. Le GET et le POST JSON retournent `application/json` ; le POST utilise aussi cette valeur pour son corps de requête. La réponse 404 annonce `text/html; charset=utf-8`, malgré l’absence de corps. Les images annoncent respectivement `image/svg+xml` et `image/png`.
+- **Content-Length** : taille du corps en octets. Les valeurs consignées sont **233** pour le GET JSON, **25** pour le corps de requête POST, **0** pour la réponse 404 et les tailles SVG/PNG indiquées plus haut.
+- **Accept** : format de réponse souhaité, que le serveur peut prendre en compte selon la route.
+- **CORS** : le POST retourne `access-control-allow-origin: *`, indiquant que les navigateurs peuvent autoriser les pages de toute origine à lire cette réponse.
+
+## 4. Reproduction
+
+### Avec curl
+
+Prérequis : curl et une connexion Internet. Le backend Veillo n’a pas besoin d’être démarré. L’option `-i` affiche les en-têtes avant le corps.
 
 ```bash
 curl -i 'https://httpbin.org/get?patient=42'
-```
 
-**Statut : `200 OK`.**
-
-Extrait du corps :
-
-```json
-{
-  "args": { "patient": "42" },
-  "headers": { "Accept": "*/*", "Host": "httpbin.org", "User-Agent": "curl/8.7.1" },
-  "method": "GET",
-  "url": "https://httpbin.org/get?patient=42"
-}
-```
-
-En-têtes de réponse expliqués :
-
-- `content-type: application/json` : le corps est du JSON. Le client sait ainsi comment l'interpréter.
-- `content-length: 233` : taille du corps en octets.
-
-Le paramètre `patient=42` placé après le `?` arrive côté serveur dans l'objet `args`. Il ne modifie pas la ressource demandée : il la précise.
-
-## 2. POST avec corps JSON et `Content-Type`
-
-```bash
 curl -i -X POST 'https://httpbin.org/post' \
   -H 'Content-Type: application/json' \
   -d '{"frequenceCardiaque":72}'
-```
 
-**Statut : `200 OK`.**
-
-Extrait du corps :
-
-```json
-{
-  "data": "{\"frequenceCardiaque\":72}",
-  "headers": { "Content-Length": "25", "Content-Type": "application/json" },
-  "json": { "frequenceCardiaque": 72 },
-  "method": "POST"
-}
-```
-
-En-têtes de réponse expliqués :
-
-- `content-type: application/json` : la réponse est aussi du JSON.
-- `access-control-allow-origin: *` : en-tête CORS. Il autorise une page web de n'importe quelle origine à lire cette réponse depuis un navigateur.
-
-Sans l'en-tête de requête `Content-Type: application/json`, le serveur ne saurait pas que le corps est du JSON. Ici, il le confirme : le champ `json` contient l'objet déjà décodé.
-
-## 3. Requête qui renvoie 404
-
-```bash
 curl -i 'https://httpbin.org/status/404'
-```
 
-**Statut : `404 Not Found`.**
-
-La route `/status/{code}` de httpbin renvoie le code demandé. Le corps est vide.
-
-En-têtes de réponse expliqués :
-
-- `content-length: 0` : le corps est vide, ce qui est cohérent avec une erreur sans détail.
-- `content-type: text/html; charset=utf-8` : type annoncé malgré l'absence de contenu. Un serveur réel renverrait en général ici un message d'erreur.
-
-Un `404` signifie que la ressource demandée n'existe pas. Ce n'est pas une erreur de réseau : la requête a bien abouti.
-
-## 4. Requête avec un en-tête `Accept` différent
-
-L'en-tête `Accept` indique au serveur le format de réponse souhaité. La route `/image` de httpbin en tient compte.
-
-```bash
 curl -i 'https://httpbin.org/image' -H 'Accept: image/svg+xml'
 curl -i 'https://httpbin.org/image' -H 'Accept: image/png'
 ```
 
-**Statut : `200 OK` dans les deux cas.**
+Le dernier appel renvoie un corps PNG binaire. Pour consulter uniquement les en-têtes, ajouter `-o /dev/null` à la commande.
 
-| `Accept` envoyé | `content-type` reçu | `content-length` |
-|---|---|---|
-| `image/svg+xml` | `image/svg+xml` | 8984 |
-| `image/png` | `image/png` | 8090 |
+### Avec Bruno
 
-En-têtes de réponse expliqués :
+1. Ouvrir Bruno et choisir « Open Collection ».
+2. Sélectionner [bruno/](../bruno/), qui contient `bruno.json`.
+3. Exécuter une requête avec « Send » ou la collection avec « Run Collection ».
+4. Consulter les réponses et les résultats des assertions.
 
-- `content-type` : le format réellement renvoyé. Il change avec l'`Accept` demandé.
-- `content-length` : la taille change aussi (8984 contre 8090 octets), car ce sont deux fichiers différents.
+La requête [05-fhir-patient.bru](../bruno/05-fhir-patient.bru) appelle `GET https://hapi.fhir.org/baseR4/Patient?_count=1` avec `Accept: application/fhir+json`.
 
-C'est de la négociation de contenu : même URL, représentation différente selon l'`Accept`.
+Pour tester le PNG dans la requête 04, remplacer temporairement `Accept` par `image/png`, puis contrôler le statut 200 et `Content-Type: image/png`. L’assertion SVG échouera avec cette variante ; rétablir `Accept: image/svg+xml` avant de relancer la collection.
 
-Toutes les routes ne se comportent pas ainsi. `https://httpbin.org/xml` renvoie toujours du XML, quel que soit l'`Accept` : c'est pourquoi nous ne l'utilisons pas pour illustrer ce point.
+## 5. Résultats et preuves
 
-## Cinquième requête (domaine du projet)
+**Résultats curl consignés :** les statuts et en-têtes décrits proviennent des réponses httpbin relevées dans le document initial. Les tailles sont historiques et peuvent varier lors d’un nouvel appel. Les anciens extraits JSON étaient raccourcis et l’adresse IP avait été retirée.
 
-La cinquième requête de la collection Bruno cible le serveur public de test HAPI FHIR, qui expose le standard FHIR pour les données de santé. Elle est décrite dans `bruno/` ; elle ne fait pas partie de l'exploration httpbin ci-dessus.
+**Assertions disponibles dans Bruno :** neuf tests répartis sur cinq requêtes vérifient les statuts, `args.patient === "42"`, `json.frequenceCardiaque === 72`, `Content-Type: image/svg+xml` et `resourceType === "Bundle"` pour HAPI FHIR.
 
-## Rejouer ces requêtes
+**Résultat historique déclaré :** cinq requêtes et neuf assertions réussies dans Bruno. Les fichiers de requêtes et leurs tests sont versionnés, mais aucun rapport d’exécution ni capture ne confirme ce résultat dans le dépôt.
 
-Les mêmes requêtes sont disponibles dans la collection `bruno/` du dépôt.
+**Résultat attendu lors d’une nouvelle exécution :** neuf assertions réussies, avec 200 pour les requêtes 01, 02, 04 et 05, et 404 pour la requête 03. Les services externes doivent être disponibles.
+
+**Limite pour le PNG :** sa réponse curl est consignée, mais sa vérification manuelle dans Bruno reste contradictoire entre l’ancien compte rendu et la note de la requête 04. Aucune capture versionnée ne permet de la confirmer ; seul le SVG est testé automatiquement.
+
+Le [README](../README.md#5-tp1--initialisation-et-découverte-http) présente les livrables du TP1. Aucune requête n’a été réexécutée pour cette réorganisation.
