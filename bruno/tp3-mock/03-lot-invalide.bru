@@ -1,0 +1,48 @@
+meta {
+  name: 03 POST /measurements corps invalide (mock)
+  type: http
+  seq: 3
+}
+
+post {
+  url: {{baseUrl}}/measurements
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "batchId": "pas-un-uuid",
+    "measurements": [
+      {
+        "horodatage": "2026-11-11T08:00:00Z",
+        "frequenceCardiaque": 72,
+        "spo2": 140,
+        "pas": 120
+      }
+    ]
+  }
+}
+
+docs {
+  Corps volontairement invalide : batchId n'est pas un UUID et spo2 dépasse le maximum de 100.
+  Prism valide la requête avec le contrat et la rejette sans appeler de serveur.
+}
+
+tests {
+  test("statut 400 (corps rejeté par Prism)", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+
+  test("format problem+json", function() {
+    expect(res.getHeader("content-type")).to.contain("application/problem+json");
+  });
+}

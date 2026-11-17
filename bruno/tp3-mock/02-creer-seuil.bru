@@ -1,0 +1,37 @@
+meta {
+  name: 02 POST /patients/{patientId}/seuils (mock)
+  type: http
+  seq: 2
+}
+
+post {
+  url: {{baseUrl}}/patients/{{patientId}}/seuils
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "typeMesure": "FREQUENCE_CARDIAQUE",
+    "valeurMin": 50,
+    "valeurMax": 120
+  }
+}
+
+tests {
+  test("statut 201", function() {
+    expect(res.getStatus()).to.equal(201);
+  });
+
+  test("en-tête Location présent", function() {
+    expect(res.getHeader("location")).to.be.a("string");
+  });
+}
