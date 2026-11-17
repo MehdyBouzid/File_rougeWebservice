@@ -2,17 +2,7 @@
 
 Ce document décrit comment valider, documenter et mocker `openapi.yaml`. Il faut Node.js 22 ; les outils passent par `npx`, sans installation globale.
 
-## 1. Lint Spectral
-
-```bash
-npx @stoplight/spectral-cli lint openapi.yaml
-```
-
-La configuration est dans `.spectral.yaml` : règles `spectral:oas`, avec `operation-operationId` passée en `error`.
-
-**Résultat obtenu : `No results with a severity of 'error' found!`**, c'est-à-dire 0 erreur et 0 warning.
-
-## 2. Documentation Redocly
+## 1. Documentation Redocly
 
 ```bash
 npx @redocly/cli build-docs openapi.yaml -o docs/index.html
@@ -22,13 +12,13 @@ npx @redocly/cli build-docs openapi.yaml -o docs/index.html
 
 `npx @redocly/cli lint openapi.yaml` affiche **1 warning compris et accepté** (`no-server-example.com`). Le serveur pointe vers `http://localhost:3000`, comme le demande le TP.
 
-## 3. Mock Prism
+## 2. Mock Prism
 
 ```bash
 npx @stoplight/prism-cli mock openapi.yaml   # http://127.0.0.1:4010
 ```
 
-## 4. Client Bruno
+## 3. Client Bruno
 
 - La collection est dans `bruno/` et l'environnement dans `bruno/environments/mock.bru` (`baseUrl = http://127.0.0.1:4010`, `patientId`, `token` factice).
 - Les requêtes du TP3 sont dans `bruno/tp3-mock/`.
