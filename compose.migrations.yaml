@@ -1,0 +1,21 @@
+# À combiner avec compose.yaml uniquement pour l’outillage de développement.
+services:
+  migration-tools:
+    profiles: [tools]
+    build:
+      context: ./backend
+      target: build
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-veillo}
+      DB_USER: ${DB_USER:-veillo}
+      DB_PASSWORD: ${DB_PASSWORD:?Renseigner DB_PASSWORD dans le fichier .env}
+    volumes:
+      - ./backend/src:/app/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - veillo
+    command: [npm, run, migration:check]

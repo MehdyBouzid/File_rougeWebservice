@@ -1,0 +1,46 @@
+name: veillo
+
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-veillo}
+      DB_USER: ${DB_USER:-veillo}
+      DB_PASSWORD: ${DB_PASSWORD:?Renseigner DB_PASSWORD dans le fichier .env}
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - veillo
+
+  postgres:
+    image: postgres:17-bookworm
+    environment:
+      POSTGRES_DB: ${DB_NAME:-veillo}
+      POSTGRES_USER: ${DB_USER:-veillo}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Renseigner DB_PASSWORD dans le fichier .env}
+    ports:
+      - "127.0.0.1:${DB_PORT:-55432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 10s
+    networks:
+      - veillo
+
+networks:
+  veillo:
+
+volumes:
+  postgres_data:
