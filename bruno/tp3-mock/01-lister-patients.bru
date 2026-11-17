@@ -1,0 +1,26 @@
+meta {
+  name: 01 GET /patients (mock)
+  type: http
+  seq: 1
+}
+
+get {
+  url: {{baseUrl}}/patients?page=0&size=10
+  body: none
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+tests {
+  test("statut 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("réponse paginée", function() {
+    expect(res.getBody()).to.have.property("items");
+    expect(res.getBody()).to.have.property("pagination");
+  });
+}
