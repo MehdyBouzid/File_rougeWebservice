@@ -2,6 +2,32 @@
 
 Ce document décrit comment valider, documenter et mocker `openapi.yaml`. Il faut Node.js 22 ; les outils passent par `npx`, sans installation globale.
 
+### Rôle des outils
+
+**OpenAPI** décrit le contrat de l’API : endpoints, paramètres, données et réponses.
+
+**Spectral**
+
+- **Quoi ?** Un outil de vérification du contrat OpenAPI et des règles définies.
+- **Pourquoi ?** Repérer les erreurs du contrat avant de le tester.
+- **Quand ?** Après avoir écrit ou modifié `openapi.yaml`.
+
+**Prism**
+
+- **Quoi ?** Un serveur mock qui simule l’API à partir de `openapi.yaml`.
+- **Pourquoi ?** Tester les échanges prévus sans lancer le vrai backend.
+- **Quand ?** Une fois le contrat validé.
+
+**Bruno**
+
+- **Quoi ?** Un client HTTP qui envoie des requêtes au mock Prism.
+- **Pourquoi ?** Vérifier les statuts, les en-têtes et les corps prévus par le contrat.
+- **Quand ?** Après avoir lancé Prism.
+
+Flux utilisé :
+
+`OpenAPI décrit → Spectral vérifie → Prism simule → Bruno appelle`
+
 ## 1. Documentation Redocly
 
 ```bash

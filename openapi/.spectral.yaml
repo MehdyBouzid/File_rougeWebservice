@@ -1,0 +1,33 @@
+extends: ["spectral:oas"]
+
+# Vérifications techniques demandées pour ce contrat.
+rules:
+  operation-operationId: error
+  error-responses-use-problem-json:
+    description: Les réponses d’erreur documentées utilisent application/problem+json.
+    severity: error
+    given: "$..responses['400','401','403','404','409']"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: [content]
+          properties:
+            content:
+              type: object
+              required: [application/problem+json]
+  created-responses-have-location:
+    description: Chaque réponse 201 déclare un en-tête Location.
+    severity: error
+    given: "$..responses['201']"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: [headers]
+          properties:
+            headers:
+              type: object
+              required: [Location]

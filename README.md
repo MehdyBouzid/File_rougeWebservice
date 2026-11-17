@@ -69,3 +69,15 @@ Les livrables du TP2 sont :
 - **MCD — Conception de la base de données** : [Voir le MCD de Veillo](docs/images/mcd-veillo.png)
 
 Consigne complémentaire du support de cours : fonction principale `nommerRessourcePilote`, référence à la note interne **NC-102**. Cette mention ne correspond pas à une fonction actuellement implémentée ; la nécessité de son implémentation reste à vérifier dans le support.
+
+## 7. TP3 — Contrat OpenAPI
+
+Les livrables du TP3 sont :
+
+- **Contrat OpenAPI** : [openapi/openapi.yaml](openapi/openapi.yaml)
+- **Outillage TP3** : [docs/outillage-tp3.md](docs/outillage-tp3.md)
+- **Mock Prism** : [docs/mock-prism.md](docs/mock-prism.md)
+- **Documentation de l’API** : [docs/index.html](docs/index.html) (à générer)
+- **Capture du mock** : [docs/mock.png](docs/mock.png) (à générer)
+
+Flux : `openapi.yaml → Spectral → Prism → Bruno`
