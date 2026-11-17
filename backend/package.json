@@ -19,14 +19,33 @@
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
     "test:integration": "jest --config ./test/jest-integration.json --passWithNoTests",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "persistence:sync": "node scripts/sync-feature-entities.mjs",
+    "persistence:check": "node scripts/sync-feature-entities.mjs --check",
+    "prebuild": "npm run persistence:sync && npm run migration:check",
+    "prestart": "npm run persistence:sync",
+    "prestart:dev": "npm run persistence:sync",
+    "pretest": "npm run persistence:sync",
+    "test:infrastructure": "node --test scripts/*.test.mjs",
+    "migration:generate": "node scripts/migrations.mjs generate",
+    "migration:show": "node scripts/migrations.mjs show",
+    "migration:run": "node scripts/migrations.mjs run",
+    "migration:check": "node scripts/migrations.mjs check",
+    "migration:create": "node scripts/migrations.mjs create",
+    "migration:revert": "node scripts/migrations.mjs revert",
+    "test:migrations:postgres": "node scripts/test-migrations-postgres.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
     "@nestjs/core": "^11.0.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/typeorm": "^11.0.3",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "pg": "^8.23.1",
     "reflect-metadata": "^0.2.2",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "typeorm": "^0.3.31"
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",

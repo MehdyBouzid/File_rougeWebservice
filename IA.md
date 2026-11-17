@@ -6,6 +6,7 @@ Nous utilisons l’IA pour mieux comprendre les notions du cours, confronter nos
 
 - **Claude**
 - **Claude Code**
+- **Codex**
 
 Cette liste pourra être complétée si d’autres outils sont utilisés par les membres du groupe.
 
@@ -30,7 +31,9 @@ L’IA nous aide à rédiger et à structurer le [README](README.md), [docs/desi
 
 Nous l’utilisons pour reformuler les informations que nous avons déjà, mieux les organiser et améliorer la clarté et la cohérence des documents.
 
-## Développement et TP1
+## Développement
+
+### Initialisation et TP1
 
 Claude Code a été utilisé pour :
 
@@ -39,6 +42,14 @@ Claude Code a été utilisé pour :
 - vérifier les outils et l’environnement du TP1 ;
 - exécuter les commandes curl de l’exploration HTTP ;
 - créer la collection Bruno dans `bruno/` et le `.gitignore` à la racine.
+
+### Préparation du backend
+
+L’IA a été utilisée pour préparer la structure technique du backend NestJS : création des modules, organisation des dossiers, configuration des dépendances et installation de TypeORM.
+
+Elle a également aidé à automatiser certaines configurations et à ajouter des commentaires pédagogiques pour faciliter la compréhension du code.
+
+**La conception des fonctionnalités, la logique métier et leur implémentation restent à la charge des développeurs.**
 
 ## Vérification et responsabilité
 
