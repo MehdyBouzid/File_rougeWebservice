@@ -1,0 +1,35 @@
+Unauthorized:
+  description:
+    L’authentification de l’appelant est invalide ; aucun appelant authentifié ne peut être
+    établi.
+  content:
+    application/problem+json:
+      schema:
+        $ref: "./schemas.yaml#/Problem"
+      examples:
+        erreur:
+          $ref: "./examples.yaml#/Unauthorized"
+  headers:
+    WWW-Authenticate:
+      description: Challenge Bearer ; détails à préciser avec le fournisseur OAuth.
+      schema:
+        type: string
+      example: Bearer
+PatientNotFound:
+  description: Le patient demandé est introuvable.
+  content:
+    application/problem+json:
+      schema:
+        $ref: "./schemas.yaml#/Problem"
+      examples:
+        erreur:
+          $ref: "./examples.yaml#/NotFound"
+AlertNotFound:
+  description: L’alerte demandée est introuvable.
+  content:
+    application/problem+json:
+      schema:
+        $ref: "./schemas.yaml#/Problem"
+      examples:
+        erreur:
+          $ref: "./examples.yaml#/NotFound"

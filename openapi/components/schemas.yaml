@@ -1,0 +1,113 @@
+Identifier:
+  description:
+    Identifiant métier ; type, format et bornes restent à définir. Les exemples de
+    paramètres ne fixent pas le type définitif.
+# À valider : noms JSON, types, unités et validation des quatre valeurs du relevé.
+Measurement:
+  type: object
+  description:
+    "Un relevé contient un horodatage, une fréquence cardiaque, une SpO₂ et un nombre de
+    pas. Noms JSON, types précis, unités et validation restant à définir : aucune propriété JSON
+    imposée."
+# Retenu : un patient par lot, patientId, batchId et au moins un relevé.
+MeasurementBatch:
+  type: object
+  properties:
+    patientId:
+      $ref: "#/Identifier"
+    batchId:
+      $ref: "#/Identifier"
+    measurements:
+      type: array
+      minItems: 1
+      items:
+        $ref: "#/Measurement"
+  required:
+    - patientId
+    - batchId
+    - measurements
+  description:
+    Lot de mesures fictives associé à un patient. Enregistrement atomique ;
+    tout batchId déjà reçu est refusé, contenu identique ou différent.
+Patient:
+  description:
+    "Informations du patient : identifiant, nom, prénom et date de naissance. Structure
+    JSON à définir."
+Threshold:
+  description:
+    Identifiant, type de mesure, valeurs minimale et maximale et état actif du seuil.
+    Structure JSON à définir.
+ThresholdCreate:
+  type: object
+  description:
+    Le type de mesure et les valeurs minimale et maximale sont nécessaires métier. Leurs
+    noms JSON et validations ne sont pas arrêtés ; aucun nom de champ issu du MCD n’est imposé
+    au corps JSON.
+ThresholdPatch:
+  type: object
+  description:
+    Valeurs minimale, maximale et état actif sont facultatifs ; seuls les champs à modifier
+    sont transmis. Noms JSON et comportement du corps vide restent à définir.
+AlertStatus:
+  type: string
+  enum:
+    - ACTIVE
+    - TRAITEE
+AlertDetail:
+  description:
+    Identifiants de l’alerte et du patient, type de mesure, valeur mesurée, valeur du
+    seuil, horodatage et statut ACTIVE ou TRAITEE. Noms JSON et sens précis de la valeur du
+    seuil à définir.
+AlertUpdate:
+  type: object
+  properties:
+    statut:
+      type: string
+      enum:
+        - TRAITEE
+  required:
+    - statut
+  description: Seule la transition ACTIVE vers TRAITEE est prévue. Pas de réactivation.
+Problem:
+  type: object
+  properties:
+    type:
+      type: string
+      format: uri-reference
+    title:
+      type: string
+    status:
+      type: integer
+      minimum: 100
+      maximum: 599
+    detail:
+      type: string
+    instance:
+      type: string
+      format: uri-reference
+  required:
+    - type
+    - title
+    - status
+  description:
+    Erreur application/problem+json. Aucun détail sensible dans les messages. Les exemples
+    sont fictifs.
+BatchReceipt:
+  description: "Corps de confirmation de création du lot : contenu et structure JSON non définis."
+MeasurementPage:
+  description:
+    Mesures et informations de pagination (page actuelle, taille et nombre total de pages).
+    Enveloppe et noms des champs JSON non définis ; aucun items, page, size ou totalPages imposé
+    dans la réponse.
+PatientPage:
+  description: Patients suivis et informations de pagination. Structure JSON et noms des champs non définis.
+AlertPage:
+  description:
+    "Alertes synthétiques des patients suivis : identifiant d’alerte, identifiant du
+    patient, nom, prénom, type de mesure, horodatage et statut. Enveloppe JSON non définie."
+ConsentList:
+  description:
+    "Consentements du patient connecté : identifiant, soignant, dates et état. Format de
+    liste, valeurs de l’état, présence et nullabilité de la date de fin à définir."
+ThresholdList:
+  description: Seuils du patient avec leurs valeurs et leur état. Format de liste et noms JSON à définir.

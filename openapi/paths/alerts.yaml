@@ -1,0 +1,151 @@
+# GET /alerts
+collection:
+  get:
+    tags:
+      - Alertes
+    operationId: listAlerts
+    summary: Afficher les alertes des patients suivis, qu’elles soient actives ou déjà traitées.
+    description:
+      Les alertes concernent uniquement les patients suivis par le soignant connecté.
+      Le contrôle du consentement reste à valider pour cette opération.
+    x-caller: soignant
+    responses:
+      "200":
+        description:
+          Les alertes des patients suivis sont récupérées selon les filtres et la pagination
+          demandés.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/AlertPage"
+      "400":
+        description:
+          Les filtres ou les paramètres de pagination sont invalides ; la taille maximale
+          documentée est de 100 alertes.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        description: L’appelant authentifié n’est pas autorisé à consulter les alertes.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/Forbidden"
+    parameters:
+      - $ref: "../components/parameters.yaml#/patientFilter"
+      - $ref: "../components/parameters.yaml#/status"
+      - $ref: "../components/parameters.yaml#/startDate"
+      - $ref: "../components/parameters.yaml#/endDate"
+      - $ref: "../components/parameters.yaml#/page"
+      - $ref: "../components/parameters.yaml#/size"
+
+# GET et PATCH /alerts/{alertId}
+item:
+  get:
+    tags:
+      - Alertes
+    operationId: getAlert
+    summary:
+      Consulter les détails d’une alerte pour identifier le patient concerné et la mesure qui l’a
+      déclenchée.
+    description:
+      Le soignant doit suivre le patient et disposer des autorisations nécessaires
+      et d’un consentement valide.
+    x-caller: soignant
+    responses:
+      "200":
+        description: Les détails de l’alerte demandée sont récupérés.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/AlertDetail"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        description:
+          Le soignant ne suit pas le patient concerné, n’a pas les autorisations nécessaires ou
+          ne dispose pas d’un consentement valide.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/AlertNotFound"
+    parameters:
+      - $ref: "../components/parameters.yaml#/alertId"
+  patch:
+    tags:
+      - Alertes
+    operationId: acknowledgeAlert
+    summary: Marquer une alerte comme traitée après sa prise en charge par le soignant.
+    description:
+      Seule la transition ACTIVE vers TRAITEE est prévue, sans réactivation.
+      Les alertes traitées sont conservées dans l’historique.
+      Le soignant doit suivre le patient ; le contrôle du consentement reste à valider.
+    x-caller: soignant
+    x-pending-decision: Préciser la frontière entre statut invalide (400) et transition interdite (409).
+    responses:
+      "200":
+        description: L’alerte a été marquée `TRAITEE`.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/AlertDetail"
+      "400":
+        description: Le statut transmis est invalide ; la valeur de mise à jour prévue est `TRAITEE`.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        description:
+          L’appelant authentifié n’est pas autorisé à traiter cette alerte, notamment s’il ne
+          suit pas le patient concerné.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/AlertNotFound"
+      "409":
+        description: L’alerte est déjà traitée ou la transition de statut demandée est interdite.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/Conflict"
+    parameters:
+      - $ref: "../components/parameters.yaml#/alertId"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/AlertUpdate"
+          examples:
+            fictif:
+              summary: Exemple fictif de travail, format à valider
+              value:
+                statut: TRAITEE
