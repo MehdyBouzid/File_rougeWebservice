@@ -31,21 +31,32 @@ Technologies présentes, selon [backend/package.json](backend/package.json) :
 - **NestJS `^11.0.1`**, avec Express, et **TypeScript `^5.7.3`**.
 - **Jest `^30.0.0` et Supertest `^7.0.0`** pour les tests.
 - **ESLint `^9.18.0` et Prettier `^3.4.2`** pour la qualité du code.
+- **TypeORM et le pilote PostgreSQL `pg`**, ainsi que `class-validator` et `class-transformer` pour la validation des DTO.
 - Dépendances complémentaires : `reflect-metadata` (`^0.2.2`) et RxJS (`^7.8.1`).
 
 Ces versions sont les contraintes déclarées, pas un relevé des versions installées. `backend/package-lock.json` verrouille les dépendances utilisées par `npm ci`.
 
+### Démarrer avec Docker
+
+Copier `.env.example` vers `.env` si nécessaire et renseigner `DB_PASSWORD`, puis lancer depuis la racine :
+
+```bash
+docker compose up -d --build
+```
+
+Le backend utilise par défaut `http://localhost:3000` (`GET /` répond actuellement `404`). Ports, connexion et migrations : [Infrastructure Docker](docs/docker.md).
+
 ### État actuel et prochaines étapes
 
-**Présent :** un serveur HTTP NestJS, un module racine vide, un test unitaire du module et un test end-to-end de réponse 404. Aucun contrôleur ni service métier n’existe.
+**Présent :** un serveur NestJS avec six modules, Controllers et Services préparatoires, une validation globale et une connexion PostgreSQL via TypeORM. Docker Compose démarre les deux services ; aucune table ni fonctionnalité métier n’est encore implémentée.
 
 **À développer :** le simulateur, la réception des lots, le stockage, la consultation des mesures, les seuils, les alertes, les consentements et le contrôle des accès.
 
-**Choix de conception retenu : OAuth 2.0 avec des jetons d’accès JWT**, avec des scopes distincts pour les montres, les patients et les soignants. Le backend devra vérifier les jetons, les autorisations et le consentement pour les accès concernés. **PostgreSQL et OAuth 2.0/JWT restent à intégrer** : aucune dépendance correspondante n’est déclarée. Les options et décisions ouvertes sont détaillées dans [docs/design.md](docs/design.md#7-sécurité).
+**Choix de conception retenu : OAuth 2.0 avec des jetons d’accès JWT**, avec des scopes distincts pour les montres, les patients et les soignants. Le backend devra vérifier les jetons, les autorisations et le consentement pour les accès concernés. **OAuth 2.0/JWT reste à intégrer**. La connexion PostgreSQL est configurée ; les entités et migrations métier restent à développer. Les options et décisions ouvertes sont détaillées dans [docs/design.md](docs/design.md#7-sécurité).
 
 ## 4. Organisation du dépôt
 
-- [backend/](backend/) : API NestJS/TypeScript, configuration et tests. Le dossier `src/features/` est réservé aux futurs modules ; `test/integration/` ne contient qu’un `.gitkeep`, et `test/e2e/` contient le test HTTP.
+- [backend/](backend/) : API NestJS/TypeScript, configuration et tests. Le dossier `src/features/` contient les six modules ; `test/integration/` est encore vide et `test/e2e/` couvre le serveur HTTP et la validation globale.
 - [bruno/](bruno/) : collection de requêtes HTTP et assertions automatiques.
 - [docs/](docs/) : exploration HTTP, conception de l’architecture, diagramme REST et modélisation des données.
 - [IA.md](IA.md) : déclaration des outils et usages de l'IA, avec leurs limites.
@@ -77,7 +88,13 @@ Les livrables du TP3 sont :
 - **Contrat OpenAPI** : [openapi/openapi.yaml](openapi/openapi.yaml)
 - **Outillage TP3** : [docs/outillage-tp3.md](docs/outillage-tp3.md)
 - **Mock Prism** : [docs/mock-prism.md](docs/mock-prism.md)
-- **Documentation de l’API** : [docs/index.html](docs/index.html) (à générer)
-- **Capture du mock** : [docs/mock.png](docs/mock.png) (à générer)
+- **Capture du mock** : [docs/mock.png](docs/mock.png)
 
 Flux : `openapi.yaml → Spectral → Prism → Bruno`
+
+## 8. TP4 — Implémentation de l'API REST
+
+Le TP4 porte sur l’implémentation du backend NestJS à partir du contrat OpenAPI et des règles métier définies.
+
+- **Choix techniques** : [CHOIX_TECHNIQUES.md](CHOIX_TECHNIQUES.md)
+- **Docker et migrations TypeORM** : [docs/docker.md](docs/docker.md)
