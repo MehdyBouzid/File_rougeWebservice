@@ -4,6 +4,8 @@ Ce document présente les endpoints de l'API Veillo, leur rôle et leur fonction
 
 Les réponses HTTP sont regroupées dans la [revue des réponses HTTP](api-review.md).
 
+L’[organisation du contrat OpenAPI et les commandes de validation](outillage-tp3.md#1-organisation-du-contrat-openapi) sont décrites dans le guide d’outillage du TP3.
+
 ---
 
 ## 1. Ingestion des mesures
