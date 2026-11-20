@@ -1,0 +1,48 @@
+meta {
+  name: 04 PATCH seuil (mock)
+  type: http
+  seq: 4
+}
+
+patch {
+  url: {{baseUrl}}/patients/{{patientId}}/seuils/{{seuilId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "valeurMin": 55,
+    "valeurMax": 110,
+    "actif": true
+  }
+}
+
+tests {
+  test("statut 200", function() {
+    expect(res.getStatus()).to.equal(200);
+  });
+
+  test("réponse JSON du seuil modifié", function() {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+    const body = res.getBody();
+    expect(body).to.include.all.keys("seuilId", "patientId", "typeMesure", "valeurMin", "valeurMax", "actif");
+    expect(["FREQUENCE_CARDIAQUE", "SPO2", "PAS"]).to.include(body.typeMesure);
+    expect(body.valeurMin).to.equal(55);
+    expect(body.valeurMax).to.equal(110);
+    expect(body.actif).to.equal(true);
+  });
+}
+
+docs {
+  Vérifie l'exemple statique de réponse PATCH de Prism, sans modification persistée.
+  patientId et seuilId sont illustratifs ; leur format définitif reste ouvert.
+}
