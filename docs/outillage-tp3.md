@@ -1,25 +1,25 @@
 # TP3 — Outillage du contrat OpenAPI
 
-Ce guide explique comment vérifier et tester le contrat OpenAPI 3.1 de Veillo. Prérequis : Node.js 22 et `npx`, sans installation globale des outils.
+Ce guide permet de valider le contrat OpenAPI 3.1 et de tester ses échanges sans backend. Prérequis : Node.js 22 et `npx`, sans installation globale ; le premier lancement peut télécharger les outils.
 
 ## Rôle des outils
 
 - **OpenAPI** décrit les endpoints, paramètres, données et réponses de l’API.
-- **Spectral** vérifie le contrat et ses règles après chaque modification des sources et régénération du bundle.
-- **Prism** simule l’API sans lancer le backend, une fois le contrat validé.
-- **Bruno** envoie des requêtes au mock pour contrôler les statuts, les en-têtes et les corps, après le lancement de Prism.
+- **Spectral** vérifie le contrat et ses règles après modification des sources et régénération du bundle.
+- **Prism** simule l’API à partir du contrat validé, sans lancer NestJS.
+- **Bruno** appelle le mock Prism pour contrôler les statuts, les en-têtes et les corps.
 
-`OpenAPI décrit → Spectral vérifie → Prism simule → Bruno appelle`
+Flux : `openapi.yaml → Spectral → Prism → Bruno`.
 
 ## 1. Organisation du contrat OpenAPI
 
-Le découpage permet de retrouver les opérations par ressource et de maintenir les définitions communes à un seul endroit, sans parcourir un fichier unique volumineux.
+Le découpage regroupe les opérations par ressource et évite de dupliquer les définitions communes.
 
-Le fichier [openapi/openapi.yaml](../openapi/openapi.yaml) est le parent et le point d’entrée principal. Il contient les informations générales et les références vers les fichiers enfants. **Le parent et les fichiers enfants constituent ensemble les sources du contrat.**
+Le parent [openapi/openapi.yaml](../openapi/openapi.yaml) est le point d’entrée : informations générales, URI et références aux fichiers enfants. **L’ensemble constitue les sources du contrat.**
 
 ### Opérations HTTP : `paths/`
 
-Chaque fichier décrit les paramètres, corps de requête, réponses et règles contractuelles de ses opérations :
+Ces fichiers décrivent les paramètres, corps, réponses et règles des opérations :
 
 - [patients.yaml](../openapi/paths/patients.yaml) : liste et détail des patients suivis.
 - [measurements.yaml](../openapi/paths/measurements.yaml) : ingestion des lots et consultation des mesures d’un patient.
@@ -31,41 +31,39 @@ Chaque fichier décrit les paramètres, corps de requête, réponses et règles 
 
 Les opérations réutilisent ces définitions au lieu de les recopier :
 
-- [schemas.yaml](../openapi/components/schemas.yaml) : schémas JSON et contraintes déjà définies, avec les formats encore ouverts signalés.
-- [responses.yaml](../openapi/components/responses.yaml) : réponses HTTP partagées, notamment l’erreur d’authentification et certaines ressources introuvables.
+- [schemas.yaml](../openapi/components/schemas.yaml) : schémas JSON, contraintes définies et formats encore ouverts.
+- [responses.yaml](../openapi/components/responses.yaml) : réponses partagées d’authentification et de ressources introuvables.
 - [parameters.yaml](../openapi/components/parameters.yaml) : identifiants de chemin, filtres et pagination.
 - [security.yaml](../openapi/components/security.yaml) : déclaration Bearer/JWT et choix OAuth restant ouverts.
 - [examples.yaml](../openapi/components/examples.yaml) : exemples fictifs de réponses d’erreur.
 
-Une correction dans une définition commune bénéficie ainsi à toutes les opérations qui la référencent.
-
 ### Lire une référence `$ref`
 
-Dans le parent, cette référence sélectionne le bloc `ingestion` du fichier des mesures :
+Le parent sélectionne le bloc `ingestion` :
 
 ```yaml
 $ref: "./paths/measurements.yaml#/ingestion"
 ```
 
-Dans l’opération d’ingestion, le corps de requête réutilise le schéma `MeasurementBatch` :
+L’ingestion réutilise le schéma `MeasurementBatch` pour son corps JSON :
 
 ```yaml
 $ref: "../components/schemas.yaml#/MeasurementBatch"
 ```
 
-Le chemin avant `#` est relatif **au fichier contenant la référence**, pas au terminal : `./` désigne son dossier et `../` remonte d’un dossier. Le fragment `#/` indique ensuite la définition à lire dans le fichier ciblé.
+Le chemin avant `#` est relatif **au fichier contenant la référence** : `./` désigne son dossier et `../` remonte d’un dossier. Après `#`, le chemin `/MeasurementBatch` sélectionne cette définition à la racine du fichier ciblé.
 
-Les clés `ingestion`, `patientMeasurements`, `collection` et `item` désignent des blocs internes. Les URI restent déclarées dans le parent ; ces clés ne créent aucune route supplémentaire.
+Les clés `ingestion`, `patientMeasurements`, `collection` et `item` sont des blocs internes, pas des URI supplémentaires.
 
 ### Maintenance et validation
 
-Le fichier [openapi.bundle.yaml](../openapi/openapi.bundle.yaml) regroupe le contrat dans un seul document. **Il est généré et ne doit pas être modifié manuellement.** Le découpage ne change ni les routes, ni les schémas, ni les règles métier.
+Le [bundle](../openapi/openapi.bundle.yaml) regroupe les sources dans un seul document, sans changer le contrat. **Il est généré et ne doit pas être modifié manuellement.**
 
-1. Modifier une opération dans le fichier de sa ressource, sous `paths/`. Pour une nouvelle URI, ajouter aussi sa référence dans le parent.
-2. Modifier un schéma JSON dans `components/schemas.yaml`, en conservant les références des opérations qui l’utilisent.
-3. Régénérer le bundle et lancer les validations après chaque modification.
+1. Modifier les opérations dans `paths/` ; une nouvelle URI nécessite aussi une référence dans le parent.
+2. Modifier les schémas dans `components/schemas.yaml`, en conservant leurs références.
+3. Régénérer le bundle, lancer Spectral, puis Redocly (section 2).
 
-Le validateur OpenAPI 3.1 de Spectral installé rejette les `$ref` des blocs de chemins du parent. Le lint utilise donc le bundle, avec les mêmes règles. Redocly et Prism lisent directement le parent.
+Dans la configuration actuelle, Spectral rejette les `$ref` des blocs de chemins du parent. Il valide donc le bundle avec [`.spectral.yaml`](../openapi/.spectral.yaml). Redocly et Prism lisent directement le parent.
 
 Depuis la racine du projet, générer le bundle puis le vérifier avec Spectral :
 
@@ -74,13 +72,13 @@ npx @redocly/cli bundle openapi/openapi.yaml -o openapi/openapi.bundle.yaml
 npx @stoplight/spectral-cli lint openapi/openapi.bundle.yaml --ruleset openapi/.spectral.yaml
 ```
 
-La validation du parent avec Redocly est décrite en section 2. Pour tester les échanges, utiliser le parent avec [Prism](#3-mock-prism).
+Vérifier la génération du bundle et l’absence d’erreur Spectral ; examiner les avertissements.
 
-Lors du contrôle du découpage, Spectral a relevé **0 erreur et 0 avertissement** sur le bundle.
+**Résultat historique du découpage : 0 erreur, 0 avertissement Spectral**, avant les évolutions des schémas Mesures et Alertes.
 
-Les règles métier validées sont décrites dans [design.md](design.md), [api.md](api.md) et [api-review.md](api-review.md). Les évolutions du contrat doivent rester cohérentes avec ces documents.
+Les règles établies et les décisions ouvertes sont décrites dans [design.md](design.md), [api.md](api.md) et [api-review.md](api-review.md).
 
-La proposition actuelle du JSON d’ingestion impose `patientId`, `batchId` et `measurements` dans le YAML. Les types d’identifiants, les champs précis des relevés et l’autorisation du simulateur restent à valider ; le découpage ne tranche pas ces questions.
+Le [guide des mesures](contrats/mesures.md) détaille le JSON d’ingestion retenu et son exemple. **[À VALIDER]** Types et formats d’identifiants, unités, bornes numériques et modalités d’autorisation du simulateur.
 
 ## 2. Documentation Redocly
 
@@ -91,9 +89,9 @@ npx @redocly/cli lint openapi/openapi.yaml
 npx @redocly/cli build-docs openapi/openapi.yaml -o docs/index.html
 ```
 
-La seconde commande génère un fichier HTML autonome, ouvrable dans un navigateur. Elle est documentée mais n’a pas été exécutée lors de cette mise à jour ; le fichier [docs/index.html](index.html) présent dans le dépôt est actuellement vide.
+Vérifier l’absence d’erreur et examiner les avertissements, puis ouvrir le HTML généré dans un navigateur.
 
-La dernière validation Redocly a relevé **0 erreur et 2 avertissements** : licence absente (`info-license`) et serveur local (`no-server-example.com`).
+**Résultat déjà consigné : 0 erreur, 2 avertissements** (licence absente, `info-license` ; serveur local, `no-server-example.com`). La génération HTML n’a pas été exécutée lors de cette révision ; [index.html](index.html) est vide.
 
 ## 3. Mock Prism
 
@@ -103,7 +101,9 @@ Depuis la racine, démarrer le mock sur `http://127.0.0.1:4010` :
 npx @stoplight/prism-cli mock openapi/openapi.yaml
 ```
 
-Lors du contrôle du découpage, les contrats avant et après ont été comparés avec deux instances temporaires de Prism : **118 appels HTTP**, couvrant les 12 succès, 43 erreurs forcées et 4 cas de requêtes invalides, ont donné des résultats identiques. Ce contrôle vérifie les échanges simulés, pas l’implémentation des règles métier dans NestJS.
+Prism doit afficher les **12 opérations** et son adresse d’écoute. Garder ce terminal ouvert pendant les appels ; `Ctrl+C` arrête le mock.
+
+**Résultat historique : 118 appels HTTP identiques avant/après découpage**, soit 12 succès, 43 erreurs forcées et 4 requêtes invalides par version. Ce contrôle précède les schémas actuels des relevés et des alertes. Il ne valide ni ces évolutions ni l’implémentation métier de NestJS.
 
 ## 4. Client Bruno
 
@@ -115,27 +115,17 @@ Avec Prism démarré, exécuter depuis le dossier `bruno/` :
 npx @usebruno/cli run tp3-mock --env mock
 ```
 
-**La collection Bruno n’a pas été réexécutée après le découpage.** Les blocs suivants décrivent les réponses attendues.
+**Bruno n’a pas été réexécuté après le découpage.** Réponses attendues, à vérifier dans le bilan des assertions :
 
-**01 — Liste des patients (`listPatients`)**
-
-`GET /patients` doit répondre `200 OK`. La structure JSON reste ouverte : l’assertion Bruno exigeant `items` et `pagination` peut échouer même si le mock respecte le contrat.
-
-**02 — Création d’un seuil (`createPatientThreshold`)**
-
-`POST /patients/{patientId}/seuils` doit répondre `201 Created`, avec un en-tête `Location`.
-
-**03 — Lot invalide (`ingestMeasurements`)**
-
-`POST /measurements` doit répondre `400 Bad Request` en `application/problem+json`, car le corps omet `patientId`, obligatoire dans le YAML actuel.
+- **01 — `listPatients`**, `GET /patients` : `200 OK`. **[À VALIDER]** Le JSON de liste reste ouvert ; l’assertion `items` et `pagination` peut échouer sans violation du contrat par le mock.
+- **02 — `createPatientThreshold`**, `POST /patients/{patientId}/seuils` : `201 Created` avec `Location`.
+- **03 — `ingestMeasurements`**, `POST /measurements` : `400 Bad Request` en `application/problem+json`, car `patientId` est absent.
 
 La note du fichier Bruno sur le format UUID de `batchId` et la SpO₂ limitée à 100 est obsolète : ces contraintes ne figurent pas dans le contrat.
 
 ### Que renvoie Prism pour un corps invalide ?
 
-Prism compare la requête au contrat. Les violations se consultent dans l’en-tête `sl-violations`. Pour la requête 03, la réponse utilise l’exemple `BadRequest` de [components/examples.yaml](../openapi/components/examples.yaml), avec le schéma `Problem`.
-
-Le corps renvoyé est l’**exemple statique** du contrat. Son `detail` ne décrit donc pas la vraie erreur. Le backend devra produire un détail adapté à la validation réellement effectuée.
+L’en-tête `sl-violations` indique les violations du contrat. Pour la requête 03, Prism utilisait l’exemple `BadRequest` de [examples.yaml](../openapi/components/examples.yaml), conforme à `Problem`. Ce corps statique ne décrit pas l’erreur réelle dans `detail` ; le backend devra produire un détail adapté.
 
 Sans en-tête `Authorization: Bearer …`, Prism répond **401**. Il ne vérifie ni la signature des JWT ni les autorisations métier.
 

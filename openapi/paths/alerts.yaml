@@ -13,7 +13,7 @@ collection:
       "200":
         description:
           Les alertes des patients suivis sont récupérées selon les filtres et la pagination
-          demandés.
+          demandés. Chaque élément est décrit par AlertSummary ; l’enveloppe paginée reste ouverte.
         content:
           application/json:
             schema:
@@ -68,6 +68,14 @@ item:
           application/json:
             schema:
               $ref: "../components/schemas.yaml#/AlertDetail"
+            example:
+              alertId: alerte-001
+              patientId: patient-001
+              typeMesure: FREQUENCE_CARDIAQUE
+              valeurMesuree: 125
+              valeurSeuil: 110
+              statut: ACTIVE
+              horodatage: "2026-11-20T10:00:00Z"
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
@@ -103,6 +111,14 @@ item:
           application/json:
             schema:
               $ref: "../components/schemas.yaml#/AlertDetail"
+            example:
+              alertId: alerte-001
+              patientId: patient-001
+              typeMesure: FREQUENCE_CARDIAQUE
+              valeurMesuree: 125
+              valeurSeuil: 110
+              statut: TRAITEE
+              horodatage: "2026-11-20T10:00:00Z"
       "400":
         description: Le statut transmis est invalide ; la valeur de mise à jour prévue est `TRAITEE`.
         content:
@@ -146,6 +162,6 @@ item:
             $ref: "../components/schemas.yaml#/AlertUpdate"
           examples:
             fictif:
-              summary: Exemple fictif de travail, format à valider
+              summary: Acquitter une alerte
               value:
                 statut: TRAITEE

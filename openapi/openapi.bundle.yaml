@@ -82,6 +82,14 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/MeasurementBatch'
+            example:
+              patientId: patient-001
+              batchId: lot-001
+              measurements:
+                - horodatage: '2026-11-19T10:00:00Z'
+                  frequenceCardiaque: 75
+                  spo2: 98
+                  pas: 120
   /patients/{patientId}/measurements:
     get:
       tags:
@@ -203,7 +211,7 @@ paths:
       x-caller: soignant
       responses:
         '200':
-          description: Les alertes des patients suivis sont récupérées selon les filtres et la pagination demandés.
+          description: Les alertes des patients suivis sont récupérées selon les filtres et la pagination demandés. Chaque élément est décrit par AlertSummary ; l’enveloppe paginée reste ouverte.
           content:
             application/json:
               schema:
@@ -250,6 +258,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AlertDetail'
+              example:
+                alertId: alerte-001
+                patientId: patient-001
+                typeMesure: FREQUENCE_CARDIAQUE
+                valeurMesuree: 125
+                valeurSeuil: 110
+                statut: ACTIVE
+                horodatage: '2026-11-20T10:00:00Z'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -280,6 +296,14 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/AlertDetail'
+              example:
+                alertId: alerte-001
+                patientId: patient-001
+                typeMesure: FREQUENCE_CARDIAQUE
+                valeurMesuree: 125
+                valeurSeuil: 110
+                statut: TRAITEE
+                horodatage: '2026-11-20T10:00:00Z'
         '400':
           description: Le statut transmis est invalide ; la valeur de mise à jour prévue est `TRAITEE`.
           content:
@@ -321,7 +345,7 @@ paths:
               $ref: '#/components/schemas/AlertUpdate'
             examples:
               fictif:
-                summary: Exemple fictif de travail, format à valider
+                summary: Acquitter une alerte
                 value:
                   statut: TRAITEE
   /patients/me/consents:
@@ -699,7 +723,26 @@ components:
       description: Identifiant métier ; type, format et bornes restent à définir. Les exemples de paramètres ne fixent pas le type définitif.
     Measurement:
       type: object
-      description: 'Un relevé contient un horodatage, une fréquence cardiaque, une SpO₂ et un nombre de pas. Noms JSON, types précis, unités et validation restant à définir : aucune propriété JSON imposée.'
+      properties:
+        horodatage:
+          type: string
+          format: date-time
+          description: Date et heure du relevé, avec un fuseau horaire.
+        frequenceCardiaque:
+          type: number
+          description: Fréquence cardiaque relevée.
+        spo2:
+          type: number
+          description: Saturation en oxygène relevée.
+        pas:
+          type: integer
+          description: Nombre de pas depuis le relevé précédent, et non un compteur cumulé.
+      required:
+        - horodatage
+        - frequenceCardiaque
+        - spo2
+        - pas
+      description: Relevé fictif associé au patient du lot. Les unités et les bornes numériques restent à préciser ; aucune limite de valeur ni interdiction de champ supplémentaire n’est imposée ici.
     MeasurementBatch:
       type: object
       properties:
@@ -732,8 +775,66 @@ components:
       enum:
         - ACTIVE
         - TRAITEE
+    AlertSummary:
+      type: object
+      properties:
+        alertId:
+          $ref: '#/components/schemas/Identifier'
+        patientId:
+          $ref: '#/components/schemas/Identifier'
+        nomPatient:
+          type: string
+        prenomPatient:
+          type: string
+        typeMesure:
+          type: string
+          description: Type de mesure concerné ; les valeurs autorisées restent à définir.
+        horodatage:
+          type: string
+          format: date-time
+          description: Horodatage de l’alerte ; l’interprétation comme date de création est proposée, à confirmer.
+        statut:
+          $ref: '#/components/schemas/AlertStatus'
+      required:
+        - alertId
+        - patientId
+        - nomPatient
+        - prenomPatient
+        - typeMesure
+        - horodatage
+        - statut
+      description: Élément synthétique de GET /alerts, sans les valeurs mesurée et du seuil. L’enveloppe paginée qui contient ces éléments reste à définir dans AlertPage.
     AlertDetail:
-      description: Identifiants de l’alerte et du patient, type de mesure, valeur mesurée, valeur du seuil, horodatage et statut ACTIVE ou TRAITEE. Noms JSON et sens précis de la valeur du seuil à définir.
+      type: object
+      properties:
+        alertId:
+          $ref: '#/components/schemas/Identifier'
+        patientId:
+          $ref: '#/components/schemas/Identifier'
+        typeMesure:
+          type: string
+          description: Type de mesure concerné ; les valeurs autorisées restent à définir.
+        valeurMesuree:
+          type: number
+          description: Valeur de la mesure ayant déclenché l’alerte.
+        valeurSeuil:
+          type: number
+          description: Valeur du seuil déclenché ; la borne minimale ou maximale réellement franchie est proposée, à confirmer.
+        statut:
+          $ref: '#/components/schemas/AlertStatus'
+        horodatage:
+          type: string
+          format: date-time
+          description: Horodatage de l’alerte ; l’interprétation comme date de création est proposée, à confirmer.
+      required:
+        - alertId
+        - patientId
+        - typeMesure
+        - valeurMesuree
+        - valeurSeuil
+        - statut
+        - horodatage
+      description: Détail retourné par GET /alerts/{alertId} et après acquittement par PATCH. Aucun identifiant de mesure ou de seuil n’est exposé. Les unités et bornes numériques restent ouvertes, ainsi que les interprétations proposées de valeurSeuil et horodatage.
     AlertUpdate:
       type: object
       properties:
@@ -773,16 +874,17 @@ components:
     PatientPage:
       description: Patients suivis et informations de pagination. Structure JSON et noms des champs non définis.
     AlertPage:
-      description: 'Alertes synthétiques des patients suivis : identifiant d’alerte, identifiant du patient, nom, prénom, type de mesure, horodatage et statut. Enveloppe JSON non définie.'
+      description: Liste paginée d’éléments décrits par AlertSummary (alertId, patientId, nomPatient, prenomPatient, typeMesure, horodatage et statut). L’enveloppe JSON et les noms des métadonnées de pagination restent ouverts ; ce schéma ne contraint pas encore leur structure.
     ConsentList:
       description: 'Consentements du patient connecté : identifiant, soignant, dates et état. Format de liste, valeurs de l’état, présence et nullabilité de la date de fin à définir.'
     ThresholdList:
       description: Seuils du patient avec leurs valeurs et leur état. Format de liste et noms JSON à définir.
 x-pending-decisions:
-  - 'Formats JSON, noms des champs, types des identifiants et enveloppes des listes : non contraints tant que non validés.'
-  - Formats des dates, unités, validation des valeurs, ordre de tri, bornes de période et corps de réponses définitifs.
+  - 'Formats JSON non encore définis, types des identifiants et enveloppes des listes : non contraints tant que non validés.'
+  - Formats des dates non encore définis, unités et bornes numériques des mesures, validations complémentaires, ordre de tri, bornes de période et corps de réponses définitifs.
   - Identification du simulateur et autorisation pour le patient indiqué par patientId, fournisseur et flux OAuth, noms des scopes.
   - Périmètre du consentement pour listes de patients/alertes, informations patient, seuils et acquittement.
   - Corps JSON de confirmation du lot et URI canonique dans Location ; pas de nouvelle route inventée.
-  - Signification de valeur_seuil, acquittement individuel, destinataires des notifications.
+  - 'Propositions à confirmer pour les alertes : valeurSeuil est la borne minimale ou maximale réellement franchie ; horodatage est la date de création de l’alerte.'
+  - Valeurs autorisées de typeMesure, enveloppe paginée des alertes, acquittement individuel, destinataires des notifications.
   - Ordre et garanties entre persistance, évaluation des seuils et alertes ; intégration PostgreSQL.
