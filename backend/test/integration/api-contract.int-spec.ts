@@ -16,11 +16,19 @@ const VALID_MEASUREMENT_BATCH = {
     },
   ],
 };
+const VALID_THRESHOLD_CREATE = {
+  typeMesure: 'FREQUENCE_CARDIAQUE',
+  valeurMin: 60,
+  valeurMax: 100,
+};
+const VALID_THRESHOLD_PATCH = { valeurMax: 110 };
 
 // Vérifie statut, type JSON et présence d’un corps sans supposer de propriétés non définies.
 function expectJsonResponse(response: Response, status: number): void {
   expect(response.status).toBe(status);
-  expect(response.headers['content-type']).toMatch(/^application\/json(?:;|$)/i);
+  expect(response.headers['content-type']).toMatch(
+    /^application\/json(?:;|$)/i,
+  );
   expect(response.body).not.toBeUndefined();
 }
 
@@ -68,6 +76,32 @@ function expectLocationHeader(response: Response): void {
   }
 
   expect(() => new URL(location, 'http://example.test')).not.toThrow();
+}
+
+function expectThresholdResponse(response: Response, status: number): void {
+  expectJsonResponse(response, status);
+  expect(response.body).toEqual(
+    expect.objectContaining({
+      typeMesure: expect.any(String),
+      valeurMin: expect.any(Number),
+      valeurMax: expect.any(Number),
+      actif: expect.any(Boolean),
+    }),
+  );
+  expect(response.body).toHaveProperty('seuilId');
+  expect(response.body).toHaveProperty('patientId');
+}
+
+function expectEtagHeader(response: Response): string {
+  const etag = response.headers.etag;
+  expect(etag).toEqual(expect.any(String));
+
+  if (typeof etag !== 'string') {
+    throw new Error('Expected ETag to be a string');
+  }
+
+  expect(etag).toMatch(/^"[^"]+"$/);
+  return etag;
 }
 
 describe('OpenAPI integration contract', () => {
@@ -312,7 +346,7 @@ describe('OpenAPI integration contract', () => {
     });
   });
 
-  // Vérifie une réponse JSON sans forme imposée et le cas d’un patient absent (404).
+  // Vérifie la liste de seuils et le cas d’un patient absent (404).
   describe('GET /patients/{patientId}/seuils', () => {
     it("returns the patient's thresholds", async () => {
       const response = await getContext()
@@ -331,13 +365,21 @@ describe('OpenAPI integration contract', () => {
     });
   });
 
-  // Les champs de ThresholdCreate ne sont pas définis ; seul le rejet d’un corps non objet est testé.
   describe('POST /patients/{patientId}/seuils', () => {
-    it.todo('creates a threshold once ThresholdCreate fields are defined');
+    it('creates a threshold and returns its ETag and location', async () => {
+      const response = await getContext()
+        .http.post('/patients/patient-001/seuils')
+        .set('Authorization', TEST_AUTHORIZATION)
+        .send(VALID_THRESHOLD_CREATE);
+
+      expectThresholdResponse(response, 201);
+      expectLocationHeader(response);
+      expectEtagHeader(response);
+    });
 
     it('rejects a non-object threshold body', async () => {
       const response = await getContext()
-        .http.post('/patients/42/seuils')
+        .http.post('/patients/patient-001/seuils')
         .set('Authorization', TEST_AUTHORIZATION)
         .set('Content-Type', 'application/json')
         .send('null');
@@ -345,27 +387,141 @@ describe('OpenAPI integration contract', () => {
       expectProblemResponse(response, 400);
     });
 
-    it.todo(
-      'returns a problem for a missing patient with a valid ThresholdCreate body',
-    );
+    it('returns a problem when the patient does not exist', async () => {
+      const response = await getContext()
+        .http.post('/patients/patient-not-found/seuils')
+        .set('Authorization', TEST_AUTHORIZATION)
+        .send(VALID_THRESHOLD_CREATE);
+
+      expectProblemResponse(response, 404);
+    });
   });
 
-  // Les champs et le comportement d’un PATCH vide ne sont pas définis ; seul le rejet d’un corps non objet est testé.
-  describe('PATCH /patients/{patientId}/seuils/{seuilId}', () => {
-    it.todo('updates a threshold once ThresholdPatch fields are defined');
-
-    it('rejects a non-object threshold body', async () => {
+  describe('GET /patients/{patientId}/seuils/{seuilId}', () => {
+    it('returns the threshold and its ETag', async () => {
       const response = await getContext()
-        .http.patch('/patients/42/seuils/7')
+        .http.get('/patients/patient-001/seuils/seuil-001')
+        .set('Authorization', TEST_AUTHORIZATION);
+
+      expectThresholdResponse(response, 200);
+      expectEtagHeader(response);
+    });
+
+    it('returns 304 without a body when If-None-Match matches', async () => {
+      const { http } = getContext();
+      const firstResponse = await http
+        .get('/patients/patient-001/seuils/seuil-001')
+        .set('Authorization', TEST_AUTHORIZATION);
+
+      expectThresholdResponse(firstResponse, 200);
+      const etag = expectEtagHeader(firstResponse);
+
+      const notModifiedResponse = await http
+        .get('/patients/patient-001/seuils/seuil-001')
         .set('Authorization', TEST_AUTHORIZATION)
+        .set('If-None-Match', etag);
+
+      expect(notModifiedResponse.status).toBe(304);
+      expect(notModifiedResponse.text).toBe('');
+      expect(expectEtagHeader(notModifiedResponse)).toBe(etag);
+    });
+
+    it('returns a problem when the threshold does not exist', async () => {
+      const response = await getContext()
+        .http.get('/patients/patient-001/seuils/seuil-not-found')
+        .set('Authorization', TEST_AUTHORIZATION);
+
+      expectProblemResponse(response, 404);
+    });
+  });
+
+  describe('PATCH /patients/{patientId}/seuils/{seuilId}', () => {
+    it('requires If-Match', async () => {
+      const response = await getContext()
+        .http.patch('/patients/patient-001/seuils/seuil-001')
+        .set('Authorization', TEST_AUTHORIZATION)
+        .send(VALID_THRESHOLD_PATCH);
+
+      expectProblemResponse(response, 428);
+    });
+
+    it('rejects a non-object body when If-Match is present', async () => {
+      const { http } = getContext();
+      const getResponse = await http
+        .get('/patients/patient-001/seuils/seuil-001')
+        .set('Authorization', TEST_AUTHORIZATION);
+
+      expectThresholdResponse(getResponse, 200);
+      const etag = expectEtagHeader(getResponse);
+
+      const response = await http
+        .patch('/patients/patient-001/seuils/seuil-001')
+        .set('Authorization', TEST_AUTHORIZATION)
+        .set('If-Match', etag)
         .set('Content-Type', 'application/json')
         .send('null');
 
       expectProblemResponse(response, 400);
     });
 
-    it.todo(
-      'returns a problem for a missing patient or threshold with a valid ThresholdPatch body',
-    );
+    it("rejects a stale If-Match and preserves the other client's update", async () => {
+      const { http } = getContext();
+      const thresholdPath = '/patients/patient-001/seuils/seuil-001';
+      const clientARead = await http
+        .get(thresholdPath)
+        .set('Authorization', TEST_AUTHORIZATION);
+      const clientBRead = await http
+        .get(thresholdPath)
+        .set('Authorization', TEST_AUTHORIZATION);
+
+      expectThresholdResponse(clientARead, 200);
+      expectThresholdResponse(clientBRead, 200);
+      const etagA = expectEtagHeader(clientARead);
+      const etagB = expectEtagHeader(clientBRead);
+      expect(etagB).toBe(etagA);
+
+      const initialMaximum = clientARead.body.valeurMax;
+      expect(typeof initialMaximum).toBe('number');
+      if (typeof initialMaximum !== 'number') {
+        throw new Error('Expected threshold maximum to be a number');
+      }
+
+      const updatedMaximum = initialMaximum + 1;
+      const updateByA = await http
+        .patch(thresholdPath)
+        .set('Authorization', TEST_AUTHORIZATION)
+        .set('If-Match', etagA)
+        .send({ valeurMax: updatedMaximum });
+
+      expectThresholdResponse(updateByA, 200);
+      const etagAfterA = expectEtagHeader(updateByA);
+      expect(etagAfterA).not.toBe(etagA);
+      expect(updateByA.body.valeurMax).toBe(updatedMaximum);
+
+      const staleUpdateByB = await http
+        .patch(thresholdPath)
+        .set('Authorization', TEST_AUTHORIZATION)
+        .set('If-Match', etagB)
+        .send({ valeurMax: updatedMaximum + 1 });
+
+      expectProblemResponse(staleUpdateByB, 412);
+
+      const finalRead = await http
+        .get(thresholdPath)
+        .set('Authorization', TEST_AUTHORIZATION);
+      expectThresholdResponse(finalRead, 200);
+      expect(finalRead.body.valeurMax).toBe(updatedMaximum);
+      expect(expectEtagHeader(finalRead)).toBe(etagAfterA);
+    });
+
+    it('returns a problem when the patient or threshold does not exist', async () => {
+      const response = await getContext()
+        .http.patch('/patients/patient-not-found/seuils/seuil-001')
+        .set('Authorization', TEST_AUTHORIZATION)
+        .set('If-Match', '"stale-etag"')
+        .send(VALID_THRESHOLD_PATCH);
+
+      expectProblemResponse(response, 404);
+    });
   });
 });
