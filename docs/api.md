@@ -14,7 +14,16 @@ Les guides suivants regroupent les routes, les JSON définis, les réponses pré
 - [Patients](contrats/patients.md).
 - [Alertes](contrats/alertes.md).
 - [Consentements](contrats/consentements.md).
-- [Seuils](contrats/seuils.md).
+- [Seuils](contrats/seuils.md), dont ETag et requêtes conditionnelles.
+- [Cache HTTP et requêtes conditionnelles](contrats/cache.md), limité aux seuils.
+
+## Règles d’accès communes
+
+- `401` : authentification absente ou invalide.
+- `403` : appelant authentifié dont le rôle ou le scope est insuffisant (BFLA). Les trois types de clients ont des scopes distincts : **montre** pour l’ingestion, **patient** pour les consentements, **soignant** pour les patients, mesures, alertes et seuils. Les noms exacts sont provisoires.
+- `404` : objet inexistant ou hors du périmètre autorisé de l’appelant (BOLA), en lecture comme en écriture. Un soignant n’accède qu’à ses patients ; un patient non suivi, un seuil d’un autre patient ou le consentement d’un autre patient sont traités comme inexistants.
+- Les collections ne retournent que les objets accessibles, quels que soient les filtres transmis (liste vide en `200` pour un filtre hors périmètre).
+- Le consentement du patient est vérifié à chaque accès concerné ; son périmètre par opération reste à valider. Là où il est exigé, son absence ou son retrait donne `404`.
 
 ---
 
@@ -26,7 +35,7 @@ Les guides suivants regroupent les routes, les JSON définis, les réponses pré
 
 Enregistrer les mesures envoyées par les montres connectées pour assurer le suivi des patients.
 
-**Appelant :** Simulateur IoT.
+**Appelant :** Simulateur IoT (scope montre).
 
 **Données reçues**
 
@@ -61,7 +70,7 @@ Les identifiants de cet exemple n’imposent ni préfixe ni format définitif. C
 
 **Traitement côté API**
 
-1. Identifier l’émetteur authentifié, vérifier qu’il est autorisé à transmettre pour le `patientId` indiqué et rattacher toutes les mesures à ce patient. Les modalités d’identification et d’autorisation restent à définir.
+1. Identifier l’émetteur authentifié (`401` sinon), vérifier son scope montre (`403` sinon), puis que le `patientId` indiqué existe et lui est rattaché (`404` sinon) ; rattacher toutes les mesures à ce patient. Les modalités d’identification et de rattachement restent à définir.
 2. Vérifier les données reçues. Une seule mesure invalide entraîne le rejet du lot entier.
 3. Vérifier le `batchId`, qui identifie de manière unique le lot :
    - S’il n’existe pas, poursuivre l’enregistrement du lot.
@@ -80,7 +89,7 @@ Les identifiants de cet exemple n’imposent ni préfixe ni format définitif. C
 
 Récupérer les mesures d’un patient sur une période donnée pour suivre leur évolution.
 
-**Appelant :** Soignant autorisé.
+**Appelant :** Soignant (scope soignant).
 
 **Paramètres**
 
@@ -100,11 +109,10 @@ Récupérer les mesures d’un patient sur une période donnée pour suivre leur
 
 **Traitement côté API**
 
-1. Vérifier l'existence du patient.
-2. Vérifier que le soignant suit ce patient.
-3. Vérifier ses autorisations et le consentement.
-4. Valider les paramètres de période et de pagination.
-5. Récupérer les mesures correspondant aux critères demandés.
+1. Vérifier le scope soignant (`403` sinon).
+2. Vérifier que le patient existe, que le soignant le suit et que le consentement est valide ; sinon `404`.
+3. Valider les paramètres de période et de pagination.
+4. Récupérer les mesures correspondant aux critères demandés.
 
 ---
 
@@ -116,7 +124,7 @@ Récupérer les mesures d’un patient sur une période donnée pour suivre leur
 
 Afficher les patients suivis par le soignant connecté.
 
-**Appelant :** Soignant autorisé.
+**Appelant :** Soignant (scope soignant).
 
 **Paramètres**
 
@@ -133,8 +141,8 @@ Afficher les patients suivis par le soignant connecté.
 
 **Traitement côté API**
 
-1. Identifier le soignant connecté.
-2. Récupérer uniquement les patients qu'il suit via l'association `SUIVRE`.
+1. Identifier le soignant connecté et vérifier son scope (`403` sinon).
+2. Récupérer uniquement les patients qu'il suit via l'association `SUIVRE`, que le consentement soit retenu ou non à ce niveau (à valider).
 3. Appliquer la pagination.
 
 ---
@@ -147,7 +155,7 @@ Afficher les patients suivis par le soignant connecté.
 
 Consulter les informations d’un patient suivi.
 
-**Appelant :** Soignant autorisé.
+**Appelant :** Soignant (scope soignant).
 
 **Paramètres**
 
@@ -162,10 +170,9 @@ Consulter les informations d’un patient suivi.
 
 **Traitement côté API**
 
-1. Vérifier l'existence du patient.
-2. Vérifier que le soignant connecté suit ce patient.
-3. Vérifier ses autorisations.
-4. Retourner les informations du patient.
+1. Vérifier le scope soignant (`403` sinon).
+2. Vérifier que le patient existe et que le soignant connecté le suit ; sinon `404`.
+3. Retourner les informations du patient.
 
 ---
 
@@ -177,7 +184,7 @@ Consulter les informations d’un patient suivi.
 
 Afficher les alertes des patients suivis, qu’elles soient actives ou déjà traitées.
 
-**Appelant :** Soignant autorisé.
+**Appelant :** Soignant (scope soignant).
 
 **Paramètres**
 
@@ -199,9 +206,9 @@ Afficher les alertes des patients suivis, qu’elles soient actives ou déjà tr
 
 **Traitement côté API**
 
-1. Identifier le soignant connecté.
+1. Identifier le soignant connecté et vérifier son scope (`403` sinon).
 2. Récupérer les alertes concernant uniquement les patients qu'il suit.
-3. Appliquer les filtres éventuels.
+3. Appliquer les filtres éventuels sans jamais élargir ce périmètre (un filtre `patientId` hors périmètre donne une liste vide).
 4. Appliquer la pagination.
 5. Retourner les alertes correspondantes.
 
@@ -215,7 +222,7 @@ Afficher les alertes des patients suivis, qu’elles soient actives ou déjà tr
 
 Consulter les détails d’une alerte pour identifier le patient concerné et la mesure qui l’a déclenchée.
 
-**Appelant :** Soignant autorisé.
+**Appelant :** Soignant (scope soignant).
 
 **Paramètres**
 
@@ -233,11 +240,9 @@ Consulter les détails d’une alerte pour identifier le patient concerné et la
 
 **Traitement côté API**
 
-1. Identifier le soignant connecté.
-2. Vérifier l'existence de l'alerte.
-3. Vérifier que le soignant suit le patient concerné.
-4. Vérifier ses autorisations et le consentement.
-5. Retourner les détails de l'alerte.
+1. Identifier le soignant connecté et vérifier son scope (`403` sinon).
+2. Vérifier que l'alerte existe, que le soignant suit le patient concerné et que le consentement est valide ; sinon `404`.
+3. Retourner les détails de l'alerte.
 
 ---
 
@@ -273,7 +278,7 @@ Le soignant sélectionne une notification et consulte dans l’application les d
 
 Marquer une alerte comme traitée après sa prise en charge par le soignant.
 
-**Appelant :** Soignant autorisé.
+**Appelant :** Soignant (scope soignant).
 
 **Paramètres**
 
@@ -285,11 +290,10 @@ Marquer une alerte comme traitée après sa prise en charge par le soignant.
 
 **Traitement côté API**
 
-1. Identifier le soignant connecté.
-2. Vérifier l'existence de l'alerte.
-3. Vérifier que le soignant suit le patient concerné.
-4. Vérifier que l'alerte n'a pas déjà été traitée.
-5. Mettre à jour le statut de l'alerte.
+1. Identifier le soignant connecté et vérifier son scope (`403` sinon).
+2. Vérifier que l'alerte existe et que le soignant suit le patient concerné ; sinon `404`. Le consentement reste à valider pour cette action.
+3. Vérifier que l'alerte n'a pas déjà été traitée (`409`).
+4. Mettre à jour le statut de l'alerte.
 
 **Règles métier**
 
@@ -308,7 +312,7 @@ Marquer une alerte comme traitée après sa prise en charge par le soignant.
 
 Consulter les consentements donnés par le patient connecté.
 
-**Appelant :** Patient authentifié.
+**Appelant :** Patient authentifié (scope patient).
 
 **Paramètres**
 
@@ -324,7 +328,7 @@ Aucun.
 
 **Traitement côté API**
 
-1. Identifier le patient connecté à partir de son authentification.
+1. Identifier le patient connecté à partir de son authentification et vérifier son scope (`403` sinon).
 2. Récupérer ses consentements.
 3. Retourner les informations correspondantes.
 
@@ -338,7 +342,7 @@ Aucun.
 
 Retirer un consentement précédemment donné pour mettre fin aux accès concernés.
 
-**Appelant :** Patient authentifié.
+**Appelant :** Patient authentifié (scope patient).
 
 **Paramètres**
 
@@ -346,8 +350,8 @@ Retirer un consentement précédemment donné pour mettre fin aux accès concern
 
 **Traitement côté API**
 
-1. Identifier le patient connecté.
-2. Vérifier que le consentement existe et lui appartient.
+1. Identifier le patient connecté et vérifier son scope (`403` sinon).
+2. Vérifier que le consentement existe et lui appartient ; sinon `404`, sans distinguer les deux cas.
 3. Enregistrer le retrait en conservant la trace du consentement et de son retrait.
 4. Empêcher les accès futurs aux données concernés par ce consentement.
 
@@ -363,7 +367,7 @@ Le retrait ne supprime ni le consentement ni l’historique des données.
 
 Consulter les seuils configurés pour surveiller les mesures d’un patient.
 
-**Appelant :** Soignant autorisé.
+**Appelant :** Soignant (scope soignant).
 
 **Paramètres**
 
@@ -371,22 +375,51 @@ Consulter les seuils configurés pour surveiller les mesures d’un patient.
 
 **Données retournées**
 
-- Identifiant du seuil.
-- Type de mesure.
-- Valeur minimale.
-- Valeur maximale.
-- État (actif ou désactivé).
+- `seuilId` : identifiant du seuil.
+- `patientId` : identifiant du patient.
+- `typeMesure` : `FREQUENCE_CARDIAQUE`, `SPO2` ou `PAS`, enum commune aux alertes.
+- `valeurMin` et `valeurMax` : nombres.
+- `actif` : booléen.
+
+Chaque élément contient ces six propriétés. L’enveloppe de liste reste à définir.
 
 **Traitement côté API**
 
-1. Vérifier l'existence du patient.
-2. Vérifier que le soignant connecté suit ce patient.
-3. Vérifier ses autorisations.
-4. Récupérer les seuils du patient.
+1. Vérifier le scope soignant (`403` sinon).
+2. Vérifier que le patient existe et que le soignant connecté le suit ; sinon `404`. Le consentement reste à valider.
+3. Récupérer les seuils du patient.
 
 ---
 
-## 11. Création d'un seuil
+## 11. Détail d'un seuil
+
+### `GET /patients/{patientId}/seuils/{seuilId}`
+
+**Objectif**
+
+Lire un seuil et obtenir son `ETag`, nécessaire à une modification conditionnelle.
+
+**Appelant :** Soignant (scope soignant).
+
+**Paramètres**
+
+- `patientId` et `seuilId` : identifiants (chemin).
+- `If-None-Match` : `ETag` déjà détenu (en-tête, facultatif).
+
+**Données retournées**
+
+Les six propriétés de `Threshold` et l'en-tête `ETag`.
+
+**Traitement côté API**
+
+1. Vérifier le scope soignant (`403` sinon).
+2. Vérifier que le patient existe, que le soignant le suit et que le seuil lui appartient ; sinon `404`. Le consentement reste à valider.
+3. Si `If-None-Match` correspond à l'`ETag` courant (comparaison faible) : `304` sans corps.
+4. Sinon, retourner le seuil et son `ETag`.
+
+---
+
+## 12. Création d'un seuil
 
 ### `POST /patients/{patientId}/seuils`
 
@@ -394,7 +427,7 @@ Consulter les seuils configurés pour surveiller les mesures d’un patient.
 
 Créer un seuil définissant les limites qui déclenchent des alertes pour les mesures d’un patient.
 
-**Appelant :** Soignant autorisé.
+**Appelant :** Soignant (scope soignant).
 
 **Paramètres**
 
@@ -402,22 +435,22 @@ Créer un seuil définissant les limites qui déclenchent des alertes pour les m
 
 **Données reçues**
 
-- Type de mesure.
-- Valeur minimale.
-- Valeur maximale.
+- `typeMesure` : `FREQUENCE_CARDIAQUE`, `SPO2` ou `PAS`.
+- `valeurMin` et `valeurMax` : nombres.
+
+Les trois propriétés sont obligatoires, non nulles, sans propriété supplémentaire. Le patient vient du chemin ; le backend fixe automatiquement `actif` à `true`.
 
 **Traitement côté API**
 
-1. Vérifier l'existence du patient.
-2. Vérifier que le soignant connecté suit ce patient.
-3. Vérifier ses autorisations.
-4. Valider les valeurs du seuil.
-5. Vérifier qu'aucun seuil actif du même type n'existe déjà pour ce patient. Si c'est le cas, refuser la création : un seul seuil actif est autorisé par patient et par type de mesure.
-6. Enregistrer le nouveau seuil.
+1. Vérifier le scope soignant (`403` sinon).
+2. Vérifier que le patient existe et que le soignant connecté le suit ; sinon `404`. Le consentement reste à valider.
+3. Valider les données et vérifier `valeurMin <= valeurMax`, égalité autorisée.
+4. Vérifier qu'aucun seuil actif du même type n'existe déjà pour ce patient. Si c'est le cas, refuser la création (`409`) : un seul seuil actif est autorisé par patient et par type de mesure.
+5. Enregistrer le nouveau seuil actif et retourner sa représentation `Threshold` avec les en-têtes `Location` (GET individuel) et `ETag`, selon le [guide des seuils](contrats/seuils.md).
 
 ---
 
-## 12. Modification d'un seuil
+## 13. Modification d'un seuil
 
 ### `PATCH /patients/{patientId}/seuils/{seuilId}`
 
@@ -425,7 +458,7 @@ Créer un seuil définissant les limites qui déclenchent des alertes pour les m
 
 Adapter les valeurs d’un seuil ou l’activer ou le désactiver pour ajuster la surveillance du patient.
 
-**Appelant :** Soignant autorisé.
+**Appelant :** Soignant (scope soignant).
 
 **Paramètres**
 
@@ -434,26 +467,29 @@ Adapter les valeurs d’un seuil ou l’activer ou le désactiver pour ajuster l
 
 **Données reçues**
 
-- Valeur minimale (facultative).
-- Valeur maximale (facultative).
-- État actif ou désactivé (facultatif).
+- `valeurMin` : nombre (facultatif).
+- `valeurMax` : nombre (facultatif).
+- `actif` : booléen (facultatif).
 
-Seuls les champs à modifier sont transmis.
+Seuls les champs à modifier sont transmis, avec au moins un champ. Les corps vides, valeurs nulles et propriétés inconnues sont refusés ; le patient et le type de mesure ne sont pas modifiables.
+
+- `If-Match` (en-tête) : `ETag` du seuil obtenu au dernier GET, POST ou PATCH ; exigé.
 
 **Traitement côté API**
 
-1. Vérifier l'existence du patient.
-2. Vérifier que le soignant connecté suit ce patient.
-3. Vérifier que le seuil appartient au patient.
-4. Vérifier ses autorisations.
-5. Valider les nouvelles valeurs.
-6. Appliquer les modifications en respectant les règles suivantes :
+1. Vérifier le scope soignant (`403` sinon).
+2. Vérifier que le patient existe, que le soignant connecté le suit et que le seuil appartient à ce patient ; sinon `404`, y compris pour un seuil d'un autre patient. Le consentement reste à valider.
+3. `If-Match` absent : `428`. `If-Match` différent de l'`ETag` courant : `412`.
+4. Valider les données et vérifier `valeurMin <= valeurMax` après combinaison avec les valeurs conservées.
+5. Appliquer les modifications en respectant les règles suivantes :
    - Un seul seuil actif est autorisé par patient et par type de mesure.
    - L'activation est refusée si un autre seuil actif du même type existe déjà.
    - La désactivation conserve le seuil dans l'historique.
 
+La réponse contient la représentation `Threshold` après modification et son nouvel `ETag`, selon le [guide des seuils](contrats/seuils.md). L'ordre des contrôles et le futur mécanisme transactionnel (`FOR UPDATE`, index unique partiel) sont décrits dans ce guide ; ils ne sont pas implémentés.
+
 ---
 
-## 13. Autres endpoints
+## 14. Autres endpoints
 
 Les prochains endpoints seront ajoutés progressivement en conservant cette même organisation.

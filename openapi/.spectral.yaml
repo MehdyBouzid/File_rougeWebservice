@@ -3,10 +3,42 @@ extends: ["spectral:oas"]
 # Vérifications techniques demandées pour ce contrat.
 rules:
   operation-operationId: error
+  # Schéma http Bearer sans flux OAuth déclaré (non décidé) : la règle native exige des scopes OAuth.
+  # Elle est remplacée par security-roles-known, qui vérifie les noms de scopes provisoires.
+  oas3-operation-security-defined: off
+  security-roles-known:
+    description: Les scopes d’une opération sont limités aux trois types de clients.
+    severity: error
+    given: "$.paths[*][*].security[*].bearerAuth[*]"
+    then:
+      function: enumeration
+      functionOptions:
+        values: [montre, patient, soignant]
+  unauthorized-responses-have-challenge:
+    description: Chaque réponse 401 exige un en-tête WWW-Authenticate.
+    severity: error
+    given: "$..responses['401']"
+    then:
+      function: schema
+      functionOptions:
+        schema:
+          type: object
+          required: [headers]
+          properties:
+            headers:
+              type: object
+              required: [WWW-Authenticate]
+              properties:
+                WWW-Authenticate:
+                  type: object
+                  required: [required]
+                  properties:
+                    required:
+                      const: true
   error-responses-use-problem-json:
     description: Les réponses d’erreur documentées utilisent application/problem+json.
     severity: error
-    given: "$..responses['400','401','403','404','409']"
+    given: "$..responses['400','401','403','404','409','412','428']"
     then:
       function: schema
       functionOptions:

@@ -9,12 +9,15 @@ ingestion:
       patients.
     description:
       Le simulateur transmet un lot pour le patient indiqué par patientId ;
-      l’émetteur authentifié doit être autorisé à transmettre pour ce patient.
+      Scope montre requis (403 sinon). Si le patient est inexistant ou n’est pas rattaché à
+      l’émetteur authentifié, la réponse est 404 (BOLA en écriture) ; patientId seul n’autorise pas l’envoi.
       Un relevé invalide entraîne le rejet complet du lot ; l’enregistrement est atomique.
       Tout batchId existant entraîne 409, contenu identique ou différent.
       L’évaluation des seuils suit l’enregistrement dans le parcours décrit ;
       l’ordre technique et ses garanties restent à valider.
     x-caller: simulateur
+    security:
+      - bearerAuth: [montre]
     responses:
       "201":
         description: Le lot a été validé et enregistré avec toutes ses mesures dans une transaction.
@@ -46,14 +49,9 @@ ingestion:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description: L’appelant authentifié n’est pas autorisé à transmettre les mesures.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/PatientNotFound"
       "409":
         description:
           Le `batchId` a déjà été utilisé, que le contenu soit identique ou différent ; aucune
@@ -88,9 +86,11 @@ patientMeasurements:
     operationId: listPatientMeasurements
     summary: Récupérer les mesures d’un patient sur une période donnée pour suivre leur évolution.
     description:
-      Le soignant doit suivre le patient et disposer des autorisations nécessaires
-      et d’un consentement valide.
+      Scope soignant requis (403 sinon). Le patient doit exister, être suivi par le soignant et
+      avoir donné un consentement valide ; sinon 404, sans distinguer les cas (BOLA).
     x-caller: soignant
+    security:
+      - bearerAuth: [soignant]
     responses:
       "200":
         description: Les mesures du patient correspondant à la période et à la page demandées sont récupérées.
@@ -112,16 +112,7 @@ patientMeasurements:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description:
-          Le soignant n’a pas les autorisations nécessaires, ne suit pas le patient ou ne dispose
-          pas d’un consentement valide.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
       "404":
         $ref: "../components/responses.yaml#/PatientNotFound"
     parameters:

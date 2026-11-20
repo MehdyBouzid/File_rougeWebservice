@@ -6,8 +6,11 @@ collection:
     operationId: listMyConsents
     summary: Consulter les consentements donnés par le patient connecté.
     description:
-      Les consentements sont ceux du patient identifié par son authentification.
+      Scope patient requis (403 sinon). Les consentements sont ceux du patient identifié par son
+      authentification ; la collection ne contient jamais ceux d’un autre patient.
     x-caller: patient
+    security:
+      - bearerAuth: [patient]
     responses:
       "200":
         description: Les consentements du patient identifié par son authentification sont récupérés.
@@ -18,16 +21,7 @@ collection:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description:
-          L’appelant authentifié n’est pas autorisé à consulter les consentements en tant que
-          patient.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
 
 # DELETE /patients/me/consents/{consentId}
 item:
@@ -39,8 +33,11 @@ item:
     description:
       Le retrait conserve le consentement, sa trace et l’historique des données ;
       il empêche les accès futurs concernés.
-      403 si le consentement appartient à un autre patient ; 404 s’il est introuvable.
+      Scope patient requis (403 sinon). Un consentement inexistant ou appartenant à un autre patient
+      renvoie 404, sans distinguer les deux cas (BOLA).
     x-caller: patient
+    security:
+      - bearerAuth: [patient]
     x-pending-decision: Définir le comportement d’un retrait déjà effectué.
     responses:
       "204":
@@ -50,14 +47,7 @@ item:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description: Le consentement existe mais appartient à un autre patient.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
       "404":
         description: Le consentement demandé est introuvable.
         content:

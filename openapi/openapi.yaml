@@ -55,10 +55,15 @@ components:
   responses:
     Unauthorized:
       $ref: "./components/responses.yaml#/Unauthorized"
+    Forbidden:
+      $ref: "./components/responses.yaml#/Forbidden"
     PatientNotFound:
       $ref: "./components/responses.yaml#/PatientNotFound"
     AlertNotFound:
       $ref: "./components/responses.yaml#/AlertNotFound"
+  headers:
+    ETag:
+      $ref: "./components/cache.yaml#/headers/ETag"
   examples:
     BadRequest:
       $ref: "./components/examples.yaml#/BadRequest"
@@ -82,6 +87,10 @@ components:
       $ref: "./components/parameters.yaml#/seuilId"
     consentId:
       $ref: "./components/parameters.yaml#/consentId"
+    ifMatch:
+      $ref: "./components/cache.yaml#/parameters/ifMatch"
+    ifNoneMatch:
+      $ref: "./components/cache.yaml#/parameters/ifNoneMatch"
     startDate:
       $ref: "./components/parameters.yaml#/startDate"
     endDate:
@@ -103,6 +112,8 @@ components:
       $ref: "./components/schemas.yaml#/MeasurementBatch"
     Patient:
       $ref: "./components/schemas.yaml#/Patient"
+    MeasurementType:
+      $ref: "./components/schemas.yaml#/MeasurementType"
     Threshold:
       $ref: "./components/schemas.yaml#/Threshold"
     ThresholdCreate:
@@ -139,16 +150,21 @@ x-pending-decisions:
   - Formats des dates non encore définis, unités et bornes numériques des mesures,
     validations complémentaires, ordre de tri, bornes de période et corps de réponses définitifs.
   # Sécurité : la cible patientId est retenue ; ses autorisations restent à préciser.
-  - Identification du simulateur et autorisation pour le patient indiqué par patientId,
-    fournisseur et flux OAuth, noms des scopes.
-  - Périmètre du consentement pour listes de patients/alertes, informations patient, seuils et
-    acquittement.
+  - Identification du simulateur et rattachement montre-patient pour patientId, fournisseur et
+    flux OAuth, noms définitifs et granularité des scopes montre/patient/soignant (noms provisoires).
+  - "Périmètre du consentement pour listes de patients/alertes, informations patient, seuils et
+    acquittement. Principe retenu : s’il est exigé, son absence ou son retrait place l’objet hors du
+    périmètre (404 en accès direct, exclusion dans les collections)."
+  - "Seuils — ETag fort calculé sans colonne de version : algorithme exact, sérialisation canonique
+    et gestion de If-Match: * à valider. ETag sur la collection des seuils non retenu."
+  - "Sécurité — flux OAuth (authorizationCode avec PKCE, clientCredentials), URLs du fournisseur et
+    déclaration de schéma oauth2 : non figés, voir docs/outillage-tp3.md."
   # Réponse de création du lot.
   - Corps JSON de confirmation du lot et URI canonique dans Location ; pas de nouvelle route inventée.
   # Alertes et notifications.
   - "Propositions à confirmer pour les alertes : valeurSeuil est la borne minimale ou maximale
     réellement franchie ; horodatage est la date de création de l’alerte."
-  - Valeurs autorisées de typeMesure, enveloppe paginée des alertes, acquittement individuel,
+  - Enveloppe paginée des alertes, acquittement individuel,
     destinataires des notifications.
   # Traitement et persistance.
   - Ordre et garanties entre persistance, évaluation des seuils et alertes ; intégration PostgreSQL.

@@ -1,50 +1,47 @@
 # Contrats API — Patients
 
-Ces opérations sont destinées au soignant autorisé et portent uniquement sur les patients qu’il suit. Elles décrivent le comportement attendu, sans attester de son implémentation.
+Ces deux opérations sont réservées au soignant (scope soignant) et ne portent que sur **les patients qu’il suit**. Un patient non suivi est traité comme un patient inexistant. Ce guide décrit le contrat attendu, pas une implémentation.
 
 Sources : [opérations patients](../../openapi/paths/patients.yaml) et schémas `Patient` et `PatientPage` dans [schemas.yaml](../../openapi/components/schemas.yaml). Les succès utilisent `application/json` et les erreurs `application/problem+json`.
 
-## Liste des patients
+## Lister ses patients
 
-### `GET /patients`
+`GET /patients` renvoie les patients suivis par le soignant connecté : identifiant, nom, prénom et date de naissance, avec la pagination.
 
-Retrouver les patients suivis par le soignant connecté.
+```http
+GET /patients?page=0&size=50 HTTP/1.1
+Authorization: Bearer <jeton>
+```
 
-**Paramètres de requête**
+`page` commence à `0` (défaut `0`) et `size` vaut `50` par défaut, maximum `100`. L’enveloppe de la réponse et le nom des champs JSON restent à définir.
 
-- `page` : entier à partir de `0`, valeur par défaut `0`.
-- `size` : entier, valeur par défaut `50`, maximum `100` ; une valeur supérieure est rejetée.
+```text
+soignant connecté ──► SUIVRE ──► ses patients seulement
+```
 
-**JSON attendu**
+La collection ne contient jamais un patient non suivi.
 
-La liste contient les informations des patients suivis : identifiant, nom, prénom et date de naissance, avec les informations de pagination. `PatientPage` laisse l’enveloppe et les noms des champs JSON ouverts.
+- `200` : liste paginée récupérée.
+- `400` : pagination invalide.
+- `401` : authentification absente ou invalide.
+- `403` : scope soignant manquant.
 
-**Réponses prévues**
+## Lire un patient
 
-- `200 OK` : liste paginée récupérée.
-- `400 Bad Request` : pagination invalide.
-- `401 Unauthorized` : authentification absente ou invalide.
-- `403 Forbidden` : appelant non autorisé à consulter les patients.
+`GET /patients/{patientId}` renvoie le patient (identifiant, nom, prénom, date de naissance).
 
-## Détail d’un patient
+```http
+GET /patients/patient-001 HTTP/1.1
+Authorization: Bearer <jeton>
+```
 
-### `GET /patients/{patientId}`
+Les noms et types des propriétés JSON ne sont pas encore définis ; aucun exemple de réponse n’est fourni.
 
-Consulter les informations d’un patient suivi.
+- `200` : informations récupérées.
+- `401` : authentification absente ou invalide.
+- `403` : scope soignant manquant.
+- `404` : patient inexistant ou non suivi par le soignant.
 
-**Paramètre de chemin :** `patientId`. Son type et son format ne sont pas encore définis.
+## Points à valider
 
-**JSON attendu**
-
-Le schéma `Patient` prévoit l’identifiant, le nom, le prénom et la date de naissance. Les noms des propriétés JSON et leurs types restent à définir ; aucun exemple de réponse définitif n’est fourni.
-
-**Réponses prévues**
-
-- `200 OK` : informations du patient récupérées.
-- `401 Unauthorized` : authentification absente ou invalide.
-- `403 Forbidden` : soignant ne suivant pas le patient ou ne disposant pas des autorisations nécessaires.
-- `404 Not Found` : patient introuvable.
-
-## Points ouverts
-
-Le contrôle du consentement reste à valider pour les deux consultations. Les formats des identifiants et des réponses JSON restent ouverts, de même que les modalités OAuth/JWT décrites dans la [définition de sécurité](../../openapi/components/security.yaml).
+**[À VALIDER]** Contrôle du consentement pour les deux consultations (s’il est retenu, son absence renvoie `404`), formats des identifiants et des réponses JSON, modalités OAuth/JWT décrites dans la [définition de sécurité](../../openapi/components/security.yaml).
