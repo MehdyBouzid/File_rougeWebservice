@@ -36,6 +36,24 @@ npm --prefix backend test
 npm --prefix backend run test:infrastructure
 ```
 
+## Simuler des montres connectées
+
+Le script IoT Node.js envoie des lots conformes à `POST /measurements`. Il utilise les
+valeurs par défaut `patient-001`, `patient-002` et `patient-003`, trois montres et un
+envoi toutes les 60 secondes.
+
+```bash
+npm --prefix backend run iot:simulate -- --once
+npm --prefix backend run iot:simulate -- --count 5 --patients patient-001,patient-002
+```
+
+Utilisez `API_URL`, `PATIENT_IDS`, `WATCH_COUNT`, `IOT_INTERVAL_MS` ou
+`IOT_AUTHORIZATION` pour configurer le simulateur. Pour un envoi continu :
+
+```bash
+npm --prefix backend run iot:simulate
+```
+
 ## Enregistrement des entités
 
 `@nestjs/typeorm` et `typeorm` sont installés. Chaque module importe `TypeOrmModule.forFeature(...)` avec son entrée du registre `src/persistence/feature-entities.generated.ts`. Les listes sont actuellement vides : aucun repository métier n’est créé.
