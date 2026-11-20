@@ -1,0 +1,35 @@
+BadRequest:
+  summary: Réponse d’erreur illustrative
+  value:
+    type: about:blank
+    title: Données invalides
+    status: 400
+    detail: Données invalides. Exemple fictif sans donnée de santé.
+Unauthorized:
+  summary: Réponse d’erreur illustrative
+  value:
+    type: about:blank
+    title: Authentification invalide
+    status: 401
+    detail: Authentification invalide. Exemple fictif sans donnée de santé.
+Forbidden:
+  summary: Réponse d’erreur illustrative
+  value:
+    type: about:blank
+    title: Accès refusé
+    status: 403
+    detail: Accès refusé. Exemple fictif sans donnée de santé.
+NotFound:
+  summary: Réponse d’erreur illustrative
+  value:
+    type: about:blank
+    title: Ressource introuvable
+    status: 404
+    detail: Ressource introuvable. Exemple fictif sans donnée de santé.
+Conflict:
+  summary: Réponse d’erreur illustrative
+  value:
+    type: about:blank
+    title: Conflit métier
+    status: 409
+    detail: Conflit métier. Exemple fictif sans donnée de santé.

@@ -1,0 +1,178 @@
+# GET et POST /patients/{patientId}/seuils
+collection:
+  get:
+    tags:
+      - Seuils
+    operationId: listPatientThresholds
+    summary: Consulter les seuils configurés pour surveiller les mesures d’un patient.
+    description:
+      Le soignant doit suivre le patient et disposer des autorisations nécessaires.
+      Le contrôle du consentement reste à valider pour cette opération.
+    x-caller: soignant
+    responses:
+      "200":
+        description: Les seuils configurés pour le patient sont récupérés.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/ThresholdList"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        description:
+          Le soignant ne suit pas le patient ou n’a pas les autorisations nécessaires pour
+          consulter ses seuils.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/PatientNotFound"
+    parameters:
+      - $ref: "../components/parameters.yaml#/patientId"
+  post:
+    tags:
+      - Seuils
+    operationId: createPatientThreshold
+    summary:
+      Créer un seuil définissant les limites qui déclenchent des alertes pour les mesures d’un
+      patient.
+    description:
+      Un seul seuil actif est autorisé par patient et type de mesure.
+      Le soignant doit suivre le patient ; le contrôle du consentement reste à valider.
+    x-caller: soignant
+    responses:
+      "201":
+        description: Le nouveau seuil du patient a été enregistré.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Threshold"
+        headers:
+          Location:
+            description: URI identifiant la ressource créée.
+            required: true
+            schema:
+              type: string
+              format: uri-reference
+            example: /patients/42/seuils/7
+      "400":
+        description:
+          Les données du seuil sont invalides ; les critères précis de validation restent à
+          définir.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        description:
+          Le soignant ne suit pas le patient ou n’a pas les autorisations nécessaires pour créer
+          un seuil.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/PatientNotFound"
+      "409":
+        description: Un seuil actif du même type existe déjà pour ce patient ; la création est refusée.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/Conflict"
+    parameters:
+      - $ref: "../components/parameters.yaml#/patientId"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/ThresholdCreate"
+
+# PATCH /patients/{patientId}/seuils/{seuilId}
+item:
+  patch:
+    tags:
+      - Seuils
+    operationId: updatePatientThreshold
+    summary:
+      Adapter les valeurs d’un seuil ou l’activer ou le désactiver pour ajuster la surveillance
+      du patient.
+    description:
+      Un seul seuil actif est autorisé par patient et type de mesure.
+      La désactivation conserve le seuil.
+      Le soignant doit suivre le patient ; le contrôle du consentement reste à valider.
+    x-caller: soignant
+    responses:
+      "200":
+        description: Les valeurs ou l’état du seuil ont été modifiés.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Threshold"
+      "400":
+        description:
+          Les nouvelles données du seuil sont invalides ; les critères précis de validation
+          restent à définir.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/BadRequest"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        description:
+          Le soignant n’a pas les autorisations nécessaires ou ne suit pas le patient. Le seuil
+          doit également appartenir au patient indiqué ; le code de refus pour une discordance
+          reste à valider.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/Forbidden"
+      "404":
+        description: Le patient ou le seuil demandé est introuvable.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/NotFound"
+      "409":
+        description: L’activation entrerait en conflit avec un autre seuil actif du même type pour ce patient.
+        content:
+          application/problem+json:
+            schema:
+              $ref: "../components/schemas.yaml#/Problem"
+            examples:
+              erreur:
+                $ref: "../components/examples.yaml#/Conflict"
+    parameters:
+      - $ref: "../components/parameters.yaml#/patientId"
+      - $ref: "../components/parameters.yaml#/seuilId"
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: "../components/schemas.yaml#/ThresholdPatch"
