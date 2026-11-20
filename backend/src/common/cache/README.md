@@ -11,11 +11,17 @@ Cela ne supprime pas forcément les lectures PostgreSQL : le backend peut devoir
 ## Les quatre éléments à comprendre
 
 - **`Cache-Control`** indique comment conserver et réutiliser la réponse : `private` interdit le stockage partagé, `no-cache` exige une revalidation, `no-store` interdit le stockage, `max-age` fixe une durée de fraîcheur. La politique de Veillo reste à choisir.
-- **`ETag`** identifie une version de la réponse, par exemple `"version-1"`. Cette valeur est illustrative, pas un algorithme retenu.
+- **`ETag`** identifie une version de la réponse, par exemple `"version-1"`. La valeur donnée en exemple est illustrative ; l’algorithme n’est pas encore retenu.
 - **`If-None-Match`** contient l’ETag que le client possède déjà et souhaite faire vérifier.
 - **`304 Not Modified`** signifie que le client peut réutiliser son JSON. La réponse n’a pas de corps ; elle conserve les en-têtes nécessaires, dont l’ETag et la politique de cache applicable.
 
 Références : [cache HTTP](https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2) et [If-None-Match](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.2).
+
+## Où est le contrat ?
+
+Le guide [docs/contrats/cache.md](../../../../docs/contrats/cache.md) explique les routes concernées, les en-têtes, les réponses `200`, `201`, `304`, `412` et `428`, des exemples HTTP et les contrôles d’accès à faire avant toute réponse conditionnelle. Sa source de vérité est [cache.yaml](../../../../openapi/components/cache.yaml), utilisé par [seuils.yaml](../../../../openapi/paths/seuils.yaml). Le détail des règles est dans le [guide des seuils](../../../../docs/contrats/seuils.md#requêtes-conditionnelles-etag).
+
+Le bundle [openapi.bundle.yaml](../../../../openapi/openapi.bundle.yaml) est généré : ne pas le modifier à la main. Les utilitaires de ce dossier ne couvrent aujourd’hui que `If-None-Match` ; `If-Match` (comparaison forte) et la logique du `PATCH` ne sont pas encore prévus ici.
 
 ## Comment se déroule un échange ?
 
@@ -26,7 +32,7 @@ Pour un GET autorisé à utiliser ce mécanisme :
 3. Le backend revérifie les accès et compare avec la représentation actuelle.
 4. Si elle correspond : `304` sans JSON. Sinon : `200` avec le JSON actuel et son ETag.
 
-## Où Elamine doit-il coder ?
+## Où doit-il coder ?
 
 - [etag.util.ts](etag.util.ts) : produire l’ETag et comparer `If-None-Match`, avec des fonctions indépendantes de NestJS et de la base.
 - [etag.util.spec.ts](etag.util.spec.ts) : remplacer les `it.todo` par de vrais tests unitaires.
@@ -59,9 +65,9 @@ Les TODO ne valident aucun comportement tant que les tests ne sont pas écrits.
 
 ## Par quoi commencer ?
 
-1. Faire valider les GET concernés et leur politique de conservation et de revalidation.
-2. Préciser la construction des ETag : représentation et sérialisation comparées, tags forts ou faibles, traitement des en-têtes mal formés.
-3. Documenter les en-têtes et `304` dans le [contrat OpenAPI](../../../../openapi/openapi.yaml) avant de les activer : ils en sont actuellement absents.
+1. Le GET concerné est celui d’un seuil (voir ci-dessus) ; la politique de conservation et de revalidation (`Cache-Control`) reste à valider.
+2. Le contrat impose un ETag fort calculé depuis les six champs de `Threshold`. Restent à préciser : l’algorithme et la sérialisation canonique, le traitement de `If-Match: *` et des en-têtes mal formés.
+3. Le contrat OpenAPI déclare déjà ces en-têtes et le `304` pour les seuils ; ne pas en ajouter pour d’autres routes sans validation.
 4. Développer les utilitaires avec leurs tests, puis les raccorder aux controllers concernés.
 
 Les consignes officielles du TP4 ne sont pas présentes dans le dépôt ; aucun choix supplémentaire n’est imposé par ce guide.

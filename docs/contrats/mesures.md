@@ -1,20 +1,23 @@
 # Contrats API — Mesures
 
-Les mesures fictives alimentent le suivi des patients et l’évaluation des seuils. Ce guide décrit les envois du simulateur d’Egor et la consultation par le soignant.
+Les mesures fictives alimentent le suivi des patients et l’évaluation des seuils. Ce guide décrit les envois du simulateur d’Egor (une montre) et la consultation par le soignant. Il décrit le contrat attendu, pas des fonctionnalités déjà opérationnelles.
 
-Sources : [schémas JSON](../../openapi/components/schemas.yaml) et [opérations sur les mesures](../../openapi/paths/measurements.yaml). Il s’agit du contrat attendu, pas de fonctionnalités déjà opérationnelles.
+Sources : [schémas JSON](../../openapi/components/schemas.yaml) et [opérations sur les mesures](../../openapi/paths/measurements.yaml).
+
+```text
+montre ──► POST /measurements ──► enregistrement (tout ou rien) ──► évaluation des seuils ──► alertes
+soignant ──► GET /patients/{patientId}/measurements
+```
 
 ## 1. Envoyer un lot
 
-- Méthode et chemin : `POST /measurements`.
-- En-tête : `Content-Type: application/json`.
-- Un lot toutes les minutes, avec un ou plusieurs relevés pour un seul patient.
+`POST /measurements` : un lot par minute, avec un ou plusieurs relevés **pour un seul patient**. Sans backend, [lancer Prism](../outillage-tp3.md#3-mock-prism) et appeler `http://127.0.0.1:4010/measurements` ; ce mock ne persiste rien et ne vérifie ni doublons ni règles métier.
 
-Sans backend, [lancer Prism](../outillage-tp3.md#3-mock-prism) et appeler `http://127.0.0.1:4010/measurements`. Ce mock ne persiste rien et ne vérifie ni les doublons ni les règles métier.
+```http
+POST /measurements HTTP/1.1
+Authorization: Bearer <jeton>
+Content-Type: application/json
 
-## 2. Corps JSON
-
-```json
 {
   "patientId": "patient-001",
   "batchId": "lot-001",
@@ -29,71 +32,62 @@ Sans backend, [lancer Prism](../outillage-tp3.md#3-mock-prism) et appeler `http:
 }
 ```
 
-Les trois champs du lot sont obligatoires :
+Le lot a trois champs obligatoires : `patientId` (patient de toutes les mesures), `batchId` (identifiant unique, à renouveler à chaque lot) et `measurements` (tableau non vide).
 
-- `patientId` : patient auquel toutes les mesures du lot sont rattachées.
-- `batchId` : identifiant unique, à renouveler pour chaque nouveau lot.
-- `measurements` : tableau non vide de relevés.
+Chaque relevé a quatre champs obligatoires :
 
-Chaque relevé contient quatre champs obligatoires :
+- `horodatage` : RFC 3339 avec fuseau (`Z` pour UTC).
+- `frequenceCardiaque` : nombre.
+- `spo2` : nombre, saturation en oxygène.
+- `pas` : entier, pas depuis le relevé précédent, pas un compteur cumulé.
 
-- `horodatage` : chaîne RFC 3339 avec fuseau horaire (`Z` indique UTC).
-- `frequenceCardiaque` : nombre, fréquence cardiaque relevée.
-- `spo2` : nombre, saturation en oxygène relevée.
-- `pas` : entier, nombre de pas depuis le relevé précédent, pas un compteur cumulé.
+Les identifiants de l’exemple n’imposent ni préfixe ni UUID.
 
-**[À VALIDER]** Types et formats des identifiants, unités et bornes numériques. Les identifiants de l’exemple n’imposent ni préfixe ni UUID.
-
-## 3. Règles du lot
+## 2. Règles du lot
 
 - Un seul relevé invalide entraîne le rejet du lot entier.
-- L’enregistrement est atomique, dans une transaction : toutes les mesures ou aucune.
-- Un `batchId` déjà enregistré entraîne `409 Conflict`, contenu identique ou différent, sans nouvel enregistrement.
-- Les mesures sont rattachées au patient indiqué ; l’API vérifie ensuite les seuils applicables.
+- L’enregistrement est atomique : toutes les mesures ou aucune, dans une transaction.
+- Un `batchId` déjà enregistré donne `409`, même si le contenu est identique, sans nouvel enregistrement.
+- Les mesures sont rattachées au patient indiqué, puis l’API vérifie les seuils applicables.
 
-**[À VALIDER]** Stockage des lots et garanties entre persistance, évaluation et création des alertes ; voir la [conception](../design.md#contrats-techniques).
+## 3. Authentification et autorisation
+
+OAuth 2.0 avec JWT est retenu, avec des scopes distincts pour montres, patients et soignants (noms provisoires : `montre`, `patient`, `soignant`). Cette opération exige le scope montre (`403` sinon). Le backend vérifie aussi que le `patientId` existe et est rattaché à l’émetteur (`404` sinon) : cet identifiant seul n’autorise pas l’envoi.
 
 ## 4. Réponses HTTP prévues
 
-- `201 Created` : lot validé et enregistré, réponse en `application/json` avec `Location`. **[À VALIDER]** Corps de confirmation et valeur de cet en-tête.
-- `400 Bad Request` : données invalides, dont un champ obligatoire absent ou `measurements` vide.
-- `401 Unauthorized` : authentification absente ou invalide.
-- `403 Forbidden` : émetteur authentifié non autorisé à transmettre pour le patient concerné.
-- `409 Conflict` : `batchId` déjà enregistré, même si le contenu est identique.
+- `201` : lot validé et enregistré, en `application/json` avec `Location`.
+- `400` : données invalides, champ obligatoire absent ou `measurements` vide.
+- `401` : authentification absente ou invalide.
+- `403` : scope montre manquant.
+- `404` : patient inexistant ou non rattaché à l’émetteur authentifié.
+- `409` : `batchId` déjà enregistré.
 
 Les erreurs utilisent `application/problem+json` ; voir la [revue des réponses HTTP](../api-review.md).
 
-## 5. Authentification et autorisation
+## 5. Consulter les mesures d’un patient
 
-OAuth 2.0 avec JWT est retenu, avec des scopes distincts pour montres, patients et soignants. Le backend devra vérifier le jeton `Authorization: Bearer …` et le droit de transmettre pour le `patientId` indiqué ; cet identifiant seul n’autorise pas l’envoi.
+`GET /patients/{patientId}/measurements` exige le scope soignant, le suivi du patient et un consentement valide.
 
-**[À VALIDER]** Fournisseur, flux, noms des scopes, identification et autorisation du simulateur.
+```http
+GET /patients/patient-001/measurements?startDate=2026-10-01T00:00:00Z&endDate=2026-10-31T00:00:00Z&page=0&size=50 HTTP/1.1
+Authorization: Bearer <jeton>
+```
 
-## 6. Consulter les mesures d’un patient
+`startDate` et `endDate` (période) sont facultatifs ; `page` commence à `0` et `size` vaut `50` par défaut, maximum `100` (au-delà : `400`). La réponse contient les mesures (horodatage, fréquence cardiaque, SpO₂, pas), la page actuelle, la taille de page et le nombre total de pages. L’enveloppe (`MeasurementPage`) reste à définir : aucun exemple de réponse n’est proposé.
 
-### `GET /patients/{patientId}/measurements`
+- `200` : mesures récupérées.
+- `400` : période ou pagination invalide.
+- `401` : authentification absente ou invalide.
+- `403` : scope soignant manquant.
+- `404` : patient inexistant ou hors du périmètre du soignant (non suivi, consentement valide absent ou retiré).
 
-L’accès exige le suivi du patient, les autorisations du soignant et un consentement valide.
+## 6. Points à valider
 
-**Paramètres**
+**[À VALIDER]**
 
-- `patientId` : identifiant du patient dans le chemin.
-- `startDate` et `endDate` : filtres de période facultatifs.
-- `page` : entier à partir de `0`, valeur par défaut `0`.
-- `size` : entier, valeur par défaut `50`, maximum `100`. Une valeur supérieure est refusée avec `400`.
-
-**JSON attendu**
-
-La réponse comprend les mesures (horodatage, fréquence cardiaque, SpO₂, pas), la page actuelle, la taille de page et le nombre total de pages.
-
-**[À VALIDER]** Enveloppe et noms des champs JSON de `MeasurementPage` ; aucun exemple de réponse définitif n’est proposé.
-
-**Réponses prévues**
-
-- `200 OK` : mesures récupérées, en `application/json`.
-- `400 Bad Request` : période ou pagination invalide.
-- `401 Unauthorized` : authentification absente ou invalide.
-- `403 Forbidden` : suivi, autorisations ou consentement requis non satisfaits.
-- `404 Not Found` : patient introuvable.
-
-**[À VALIDER]** Format des filtres de dates, bornes, période par défaut et ordre de tri.
+- Types et formats des identifiants, unités et bornes numériques.
+- Corps de confirmation du `201` et valeur de `Location`.
+- Stockage des lots et garanties entre persistance, évaluation et création des alertes ; voir la [conception](../design.md#contrats-techniques).
+- Fournisseur OAuth, flux, noms définitifs des scopes, identification de la montre et rattachement montre-patient.
+- Enveloppe de `MeasurementPage`, format des filtres de dates, bornes, période par défaut et ordre de tri.

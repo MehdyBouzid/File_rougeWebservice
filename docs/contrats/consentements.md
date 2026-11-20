@@ -1,46 +1,51 @@
 # Contrats API — Consentements
 
-Ces opérations sont réservées au patient authentifié. Le segment `me` désigne le patient identifié à partir de son authentification, sans `patientId` transmis dans le chemin.
+Ces opérations sont réservées au patient authentifié (scope patient). Le segment `me` désigne le patient identifié par son jeton : aucun `patientId` n’est transmis dans le chemin. Ce guide décrit le contrat attendu, pas une implémentation.
 
-Sources : [opérations consentements](../../openapi/paths/consents.yaml) et schéma `ConsentList` dans [schemas.yaml](../../openapi/components/schemas.yaml). Les réponses d’erreur utilisent `application/problem+json`.
+Sources : [opérations consentements](../../openapi/paths/consents.yaml) et schéma `ConsentList` dans [schemas.yaml](../../openapi/components/schemas.yaml). Les erreurs utilisent `application/problem+json`.
 
 ## Consulter ses consentements
 
-### `GET /patients/me/consents`
+`GET /patients/me/consents` renvoie les consentements du patient connecté : identifiant, soignant concerné, dates de début et de fin, état. Aucun paramètre.
 
-Retrouver les consentements du patient connecté. Aucun paramètre n’est défini pour cette opération.
+```http
+GET /patients/me/consents HTTP/1.1
+Authorization: Bearer <jeton>
+```
 
-**JSON attendu**
+Le format de la liste, les noms des champs, les valeurs de l’état et la nullabilité de la date de fin restent à définir.
 
-La réponse en `application/json` contient les consentements avec leur identifiant, le soignant concerné, les dates de début et de fin et leur état. Le format de liste, les noms des champs, les valeurs de l’état et la présence ou nullabilité de la date de fin restent à définir.
+- `200` : consentements récupérés.
+- `401` : authentification absente ou invalide.
+- `403` : scope patient manquant (par exemple jeton de soignant ou de montre).
 
-**Réponses prévues**
-
-- `200 OK` : consentements récupérés.
-- `401 Unauthorized` : authentification absente ou invalide.
-- `403 Forbidden` : appelant non autorisé à consulter les consentements en tant que patient.
+La liste ne contient jamais les consentements d’un autre patient.
 
 ## Retirer un consentement
 
-### `DELETE /patients/me/consents/{consentId}`
+`DELETE /patients/me/consents/{consentId}` retire un consentement donné précédemment. Pas de corps de requête.
 
-Retirer un consentement précédemment donné.
+```http
+DELETE /patients/me/consents/consent-001 HTTP/1.1
+Authorization: Bearer <jeton>
+```
 
-**Paramètre de chemin :** `consentId`. Aucun corps de requête n’est défini dans OpenAPI.
+```http
+HTTP/1.1 204 No Content
+```
 
-**Règles**
+```text
+retrait ──► accès futurs du soignant concerné bloqués
+        └─► consentement, trace du retrait et historique des données conservés
+```
 
-- Le consentement doit appartenir au patient connecté.
-- Le retrait empêche les accès futurs concernés.
-- Le consentement et la trace de son retrait sont conservés, ainsi que l’historique des données. Il ne s’agit pas d’une suppression de cet historique.
+Le retrait n’est pas une suppression : le consentement et la trace de son retrait sont conservés, ainsi que l’historique des données.
 
-**Réponses prévues**
+- `204` : retrait enregistré, sans corps.
+- `401` : authentification absente ou invalide.
+- `403` : scope patient manquant.
+- `404` : consentement inexistant **ou** appartenant à un autre patient, sans distinction.
 
-- `204 No Content` : retrait enregistré, sans corps de réponse.
-- `401 Unauthorized` : authentification absente ou invalide.
-- `403 Forbidden` : consentement existant mais appartenant à un autre patient.
-- `404 Not Found` : consentement introuvable.
+## Points à valider
 
-## Points ouverts
-
-Le comportement d’un retrait déjà effectué reste à décider ; aucun code supplémentaire n’est retenu. Les types d’identifiants, le JSON de consultation et le lien entre identité OAuth et patient restent également ouverts, selon la [définition de sécurité](../../openapi/components/security.yaml).
+**[À VALIDER]** Comportement d’un retrait déjà effectué (aucun code supplémentaire retenu), types d’identifiants, JSON de consultation et lien entre l’identité OAuth et le patient, selon la [définition de sécurité](../../openapi/components/security.yaml).

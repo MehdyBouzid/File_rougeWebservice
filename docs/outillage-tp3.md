@@ -25,16 +25,17 @@ Ces fichiers décrivent les paramètres, corps, réponses et règles des opérat
 - [measurements.yaml](../openapi/paths/measurements.yaml) : ingestion des lots et consultation des mesures d’un patient.
 - [alerts.yaml](../openapi/paths/alerts.yaml) : liste, détail et acquittement des alertes.
 - [consents.yaml](../openapi/paths/consents.yaml) : consultation et retrait des consentements du patient connecté.
-- [seuils.yaml](../openapi/paths/seuils.yaml) : consultation, création et modification des seuils d’un patient.
+- [seuils.yaml](../openapi/paths/seuils.yaml) : liste, détail, création et modification conditionnelle (`ETag`, `If-Match`) des seuils d’un patient.
 
 ### Définitions réutilisables : `components/`
 
 Les opérations réutilisent ces définitions au lieu de les recopier :
 
 - [schemas.yaml](../openapi/components/schemas.yaml) : schémas JSON, contraintes définies et formats encore ouverts.
-- [responses.yaml](../openapi/components/responses.yaml) : réponses partagées d’authentification et de ressources introuvables.
-- [parameters.yaml](../openapi/components/parameters.yaml) : identifiants de chemin, filtres et pagination.
-- [security.yaml](../openapi/components/security.yaml) : déclaration Bearer/JWT et choix OAuth restant ouverts.
+- [responses.yaml](../openapi/components/responses.yaml) : réponses partagées `401`, `403` (scope insuffisant) et `404` (inexistant ou hors périmètre) ; les réponses `304`, `412` et `428` sont dans `cache.yaml`.
+- [parameters.yaml](../openapi/components/parameters.yaml) : identifiants de chemin, filtres et pagination ; les en-têtes `If-Match` et `If-None-Match` sont dans `cache.yaml`.
+- [cache.yaml](../openapi/components/cache.yaml) : composants du cache HTTP et des requêtes conditionnelles des seuils (`ETag`, `If-Match`, `If-None-Match`, réponses `304`, `412` et `428`), regroupés par type (`headers`, `parameters`, `responses`, `examples`).
+- [security.yaml](../openapi/components/security.yaml) : déclaration Bearer/JWT ; les scopes provisoires `montre`, `patient` et `soignant` sont indiqués par opération dans `security`. Fournisseur et flux OAuth restent ouverts.
 - [examples.yaml](../openapi/components/examples.yaml) : exemples fictifs de réponses d’erreur.
 
 ### Lire une référence `$ref`
@@ -72,7 +73,9 @@ npx @redocly/cli bundle openapi/openapi.yaml -o openapi/openapi.bundle.yaml
 npx @stoplight/spectral-cli lint openapi/openapi.bundle.yaml --ruleset openapi/.spectral.yaml
 ```
 
-Vérifier la génération du bundle et l’absence d’erreur Spectral ; examiner les avertissements.
+Vérifier la génération du bundle et l’absence d’erreur Spectral ; examiner les avertissements. La règle native `oas3-operation-security-defined` est désactivée dans `.spectral.yaml` : OpenAPI 3.1 autorise des noms de rôles pour un schéma Bearer, alors qu’elle exige des scopes OAuth, donc un flux non décidé. Elle est remplacée par la règle `security-roles-known`, qui limite les scopes de chaque opération à `montre`, `patient` et `soignant` et détecte une faute de frappe.
+
+**Expérience OAuth2, non retenue dans le contrat.** Sur une copie jetable, un seul schéma `oauth2` déclarant deux flux (`authorizationCode` pour patient et soignant, `clientCredentials` pour montre) avec des URLs fictives a passé Redocly, Spectral avec la règle native réactivée (elle détecte alors un scope inconnu) et Prism. Aucun flux ni URL n’est figé dans le contrat : le choix des flux et du fournisseur reste à valider. Le passage à `oauth2` n’exigera ensuite que de modifier `security.yaml`.
 
 **Résultat historique du découpage : 0 erreur, 0 avertissement Spectral**, avant les évolutions des schémas Mesures et Alertes.
 
@@ -101,7 +104,7 @@ Depuis la racine, démarrer le mock sur `http://127.0.0.1:4010` :
 npx @stoplight/prism-cli mock openapi/openapi.yaml
 ```
 
-Prism doit afficher les **12 opérations** et son adresse d’écoute. Garder ce terminal ouvert pendant les appels ; `Ctrl+C` arrête le mock.
+Prism doit afficher les **13 opérations** et son adresse d’écoute. Garder ce terminal ouvert pendant les appels ; `Ctrl+C` arrête le mock.
 
 **Résultat historique : 118 appels HTTP identiques avant/après découpage**, soit 12 succès, 43 erreurs forcées et 4 requêtes invalides par version. Ce contrôle précède les schémas actuels des relevés et des alertes. Il ne valide ni ces évolutions ni l’implémentation métier de NestJS.
 
@@ -115,11 +118,16 @@ Avec Prism démarré, exécuter depuis le dossier `bruno/` :
 npx @usebruno/cli run tp3-mock --env mock
 ```
 
-**Bruno n’a pas été réexécuté après le découpage.** Réponses attendues, à vérifier dans le bilan des assertions :
+**La collection complète n’a pas été réexécutée après le découpage.** Une vérification ciblée des seuils sur le contrat actuel a réussi : **5 requêtes et 11 tests**, via Prism. Elle couvre la création, le PATCH et le rejet d’un corps vide, d’une valeur nulle ou d’une propriété inconnue.
+
+Les requêtes 01 et 03 ci-dessous n’ont pas été rejouées lors de cette vérification :
 
 - **01 — `listPatients`**, `GET /patients` : `200 OK`. **[À VALIDER]** Le JSON de liste reste ouvert ; l’assertion `items` et `pagination` peut échouer sans violation du contrat par le mock.
-- **02 — `createPatientThreshold`**, `POST /patients/{patientId}/seuils` : `201 Created` avec `Location`.
+- **02 — `createPatientThreshold`**, `POST /patients/{patientId}/seuils` : `201 Created` avec `Location` et une réponse `Threshold` contenant `seuilId`, `patientId`, `typeMesure`, les bornes et `actif: true`.
 - **03 — `ingestMeasurements`**, `POST /measurements` : `400 Bad Request` en `application/problem+json`, car `patientId` est absent.
+- **04 à 07 — `updatePatientThreshold`**, `PATCH /patients/{patientId}/seuils/{seuilId}` : `200 OK` pour le corps valide, puis `400 Bad Request` en `application/problem+json` pour les trois corps invalides.
+
+Le [guide des seuils](contrats/seuils.md) détaille le JSON et l’enum commune aux alertes. Prism vérifie les contraintes de schéma, mais pas `valeurMin <= valeurMax`, l’unicité du seuil actif ou la persistance. Ses exemples statiques ne reflètent pas automatiquement les valeurs reçues.
 
 La note du fichier Bruno sur le format UUID de `batchId` et la SpO₂ limitée à 100 est obsolète : ces contraintes ne figurent pas dans le contrat.
 
