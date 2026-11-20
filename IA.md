@@ -7,6 +7,7 @@ Nous utilisons l’IA pour mieux comprendre les notions du cours, confronter nos
 - **Claude**
 - **Claude Code**
 - **Codex**
+- **GitHub Copilot**
 
 Cette liste pourra être complétée si d’autres outils sont utilisés par les membres du groupe.
 
@@ -50,6 +51,16 @@ L’IA a été utilisée pour préparer la structure technique du backend NestJS
 Elle a également aidé à automatiser certaines configurations et à ajouter des commentaires pédagogiques pour faciliter la compréhension du code.
 
 **La conception des fonctionnalités, la logique métier et leur implémentation restent à la charge des développeurs.**
+
+### Simulateur IoT
+
+GitHub Copilot a été utilisé pour créer le simulateur autonome de montres connectées dans `backend/scripts/simulate-iot.mjs`, ses tests et la documentation associée.
+
+Le script utilise Node.js, déjà prévu par le projet, et produit des lots fictifs conformes au contrat `POST /measurements` : identifiant du patient, identifiant unique du lot, fréquence cardiaque, SpO₂ et nombre de pas. Il prend en charge un envoi unique ou un envoi périodique vers l’API.
+
+Les mesures sont aléatoires mais restent dans des bornes cohérentes pour rester compatibles avec les exemples du contrat. Cette génération ne remplace pas une montre réelle, n’accède pas directement à PostgreSQL et ne définit pas les règles métier du backend.
+
+Le script et les tests ont été relus par Egor. Les choix d’intégration, les paramètres de simulation et leur éventuelle évolution restent validés par l’équipe.
 
 ## Vérification et responsabilité
 
