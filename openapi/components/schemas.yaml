@@ -2,13 +2,30 @@ Identifier:
   description:
     Identifiant métier ; type, format et bornes restent à définir. Les exemples de
     paramètres ne fixent pas le type définitif.
-# À valider : noms JSON, types, unités et validation des quatre valeurs du relevé.
 Measurement:
   type: object
+  properties:
+    horodatage:
+      type: string
+      format: date-time
+      description: Date et heure du relevé, avec un fuseau horaire.
+    frequenceCardiaque:
+      type: number
+      description: Fréquence cardiaque relevée.
+    spo2:
+      type: number
+      description: Saturation en oxygène relevée.
+    pas:
+      type: integer
+      description: Nombre de pas depuis le relevé précédent, et non un compteur cumulé.
+  required:
+    - horodatage
+    - frequenceCardiaque
+    - spo2
+    - pas
   description:
-    "Un relevé contient un horodatage, une fréquence cardiaque, une SpO₂ et un nombre de
-    pas. Noms JSON, types précis, unités et validation restant à définir : aucune propriété JSON
-    imposée."
+    Relevé fictif associé au patient du lot. Les unités et les bornes numériques restent
+    à préciser ; aucune limite de valeur ni interdiction de champ supplémentaire n’est imposée ici.
 # Retenu : un patient par lot, patientId, batchId et au moins un relevé.
 MeasurementBatch:
   type: object
@@ -53,11 +70,71 @@ AlertStatus:
   enum:
     - ACTIVE
     - TRAITEE
-AlertDetail:
+AlertSummary:
+  type: object
+  properties:
+    alertId:
+      $ref: "#/Identifier"
+    patientId:
+      $ref: "#/Identifier"
+    nomPatient:
+      type: string
+    prenomPatient:
+      type: string
+    typeMesure:
+      type: string
+      description: Type de mesure concerné ; les valeurs autorisées restent à définir.
+    horodatage:
+      type: string
+      format: date-time
+      description: Horodatage de l’alerte ; l’interprétation comme date de création est proposée, à confirmer.
+    statut:
+      $ref: "#/AlertStatus"
+  required:
+    - alertId
+    - patientId
+    - nomPatient
+    - prenomPatient
+    - typeMesure
+    - horodatage
+    - statut
   description:
-    Identifiants de l’alerte et du patient, type de mesure, valeur mesurée, valeur du
-    seuil, horodatage et statut ACTIVE ou TRAITEE. Noms JSON et sens précis de la valeur du
-    seuil à définir.
+    Élément synthétique de GET /alerts, sans les valeurs mesurée et du seuil.
+    L’enveloppe paginée qui contient ces éléments reste à définir dans AlertPage.
+AlertDetail:
+  type: object
+  properties:
+    alertId:
+      $ref: "#/Identifier"
+    patientId:
+      $ref: "#/Identifier"
+    typeMesure:
+      type: string
+      description: Type de mesure concerné ; les valeurs autorisées restent à définir.
+    valeurMesuree:
+      type: number
+      description: Valeur de la mesure ayant déclenché l’alerte.
+    valeurSeuil:
+      type: number
+      description: Valeur du seuil déclenché ; la borne minimale ou maximale réellement franchie est proposée, à confirmer.
+    statut:
+      $ref: "#/AlertStatus"
+    horodatage:
+      type: string
+      format: date-time
+      description: Horodatage de l’alerte ; l’interprétation comme date de création est proposée, à confirmer.
+  required:
+    - alertId
+    - patientId
+    - typeMesure
+    - valeurMesuree
+    - valeurSeuil
+    - statut
+    - horodatage
+  description:
+    Détail retourné par GET /alerts/{alertId} et après acquittement par PATCH.
+    Aucun identifiant de mesure ou de seuil n’est exposé. Les unités et bornes numériques
+    restent ouvertes, ainsi que les interprétations proposées de valeurSeuil et horodatage.
 AlertUpdate:
   type: object
   properties:
@@ -103,8 +180,9 @@ PatientPage:
   description: Patients suivis et informations de pagination. Structure JSON et noms des champs non définis.
 AlertPage:
   description:
-    "Alertes synthétiques des patients suivis : identifiant d’alerte, identifiant du
-    patient, nom, prénom, type de mesure, horodatage et statut. Enveloppe JSON non définie."
+    Liste paginée d’éléments décrits par AlertSummary (alertId, patientId, nomPatient,
+    prenomPatient, typeMesure, horodatage et statut). L’enveloppe JSON et les noms des
+    métadonnées de pagination restent ouverts ; ce schéma ne contraint pas encore leur structure.
 ConsentList:
   description:
     "Consentements du patient connecté : identifiant, soignant, dates et état. Format de

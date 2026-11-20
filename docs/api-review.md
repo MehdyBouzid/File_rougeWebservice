@@ -2,7 +2,7 @@
 
 Ce document regroupe les réponses envisagées pour chaque endpoint décrit dans [api.md](api.md). Il ne décrit pas des réponses déjà implémentées ou testées.
 
-Les codes sont repris du contrat en cours de conception ; les précisions restant à valider sont signalées dans chaque bloc. Les noms des scopes, les formats JSON et les critères détaillés de validation ne sont pas encore arrêtés.
+Les codes sont repris du contrat en cours de conception ; les précisions restant à valider sont signalées dans chaque bloc. Les noms des scopes, certains formats JSON et les critères détaillés de validation ne sont pas encore arrêtés.
 
 ---
 
@@ -27,7 +27,8 @@ Enregistrer les mesures envoyées par les montres connectées pour assurer le su
 
 - Le `batchId` identifie un lot de manière unique. Un identifiant inconnu permet de poursuivre l’enregistrement ; tout identifiant déjà enregistré entraîne un conflit, même si le contenu est identique.
 - La validation porte sur tout le lot et l’enregistrement est atomique : toutes les mesures sont enregistrées ou aucune ne l’est.
-- Le format JSON, les critères de validation, l’identification de la montre, le rattachement au patient et la structure de stockage restent à définir.
+- Le lot contient `patientId`, `batchId` et un tableau non vide `measurements`. Chaque relevé exige `horodatage`, `frequenceCardiaque`, `spo2` et `pas` ; `pas` représente les pas depuis le relevé précédent. Le JSON et les types sont décrits dans [api.md](api.md#1-ingestion-des-mesures).
+- Les types d’identifiants, les unités et bornes numériques, l’identification de l’émetteur, son autorisation pour le patient indiqué et la structure de stockage restent à définir.
 
 ---
 
