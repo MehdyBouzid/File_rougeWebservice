@@ -4,6 +4,18 @@ Ce document présente les endpoints de l'API Veillo, leur rôle et leur fonction
 
 Les réponses HTTP sont regroupées dans la [revue des réponses HTTP](api-review.md).
 
+L’[organisation du contrat OpenAPI et les commandes de validation](outillage-tp3.md#1-organisation-du-contrat-openapi) sont décrites dans le guide d’outillage du TP3.
+
+## Contrats par domaine
+
+Les guides suivants regroupent les routes, les JSON définis, les réponses prévues et les points ouverts utiles à chaque domaine :
+
+- [Mesures : ingestion IoT et consultation](contrats/mesures.md).
+- [Patients](contrats/patients.md).
+- [Alertes](contrats/alertes.md).
+- [Consentements](contrats/consentements.md).
+- [Seuils](contrats/seuils.md).
+
 ---
 
 ## 1. Ingestion des mesures
@@ -18,18 +30,38 @@ Enregistrer les mesures envoyées par les montres connectées pour assurer le su
 
 **Données reçues**
 
+- `patientId` : identifiant du patient auquel toutes les mesures du lot sont rattachées.
 - `batchId` : identifiant unique du lot.
-- `measurements` : liste des relevés contenant :
-  - Horodatage.
-  - Fréquence cardiaque.
-  - SpO₂.
-  - Nombre de pas.
+- `measurements` : tableau non vide de relevés contenant chacun :
+  - `horodatage` : chaîne de date et heure au format RFC 3339, avec un fuseau horaire.
+  - `frequenceCardiaque` : nombre.
+  - `spo2` : nombre représentant la saturation en oxygène.
+  - `pas` : entier, nombre de pas depuis le relevé précédent, et non un compteur cumulé.
 
-Le format JSON exact et les règles de validation restent à définir.
+Les trois champs du lot et les quatre champs de chaque relevé sont obligatoires. Le type et le format des identifiants, les unités et les bornes numériques restent à préciser.
+
+Exemple de lot fictif envoyé par le simulateur toutes les minutes :
+
+```json
+{
+  "patientId": "patient-001",
+  "batchId": "lot-001",
+  "measurements": [
+    {
+      "horodatage": "2026-11-19T10:00:00Z",
+      "frequenceCardiaque": 75,
+      "spo2": 98,
+      "pas": 120
+    }
+  ]
+}
+```
+
+Les identifiants de cet exemple n’imposent ni préfixe ni format définitif. Chaque nouveau lot utilise un nouveau `batchId` ; renvoyer un lot déjà enregistré entraîne un conflit.
 
 **Traitement côté API**
 
-1. Identifier la montre émettrice et rattacher les mesures au patient concerné ; les modalités restent à définir.
+1. Identifier l’émetteur authentifié, vérifier qu’il est autorisé à transmettre pour le `patientId` indiqué et rattacher toutes les mesures à ce patient. Les modalités d’identification et d’autorisation restent à définir.
 2. Vérifier les données reçues. Une seule mesure invalide entraîne le rejet du lot entier.
 3. Vérifier le `batchId`, qui identifie de manière unique le lot :
    - S’il n’existe pas, poursuivre l’enregistrement du lot.

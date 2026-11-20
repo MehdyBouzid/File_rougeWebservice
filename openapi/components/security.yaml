@@ -1,0 +1,8 @@
+bearerAuth:
+  type: http
+  scheme: bearer
+  bearerFormat: JWT
+  description:
+    Jeton d’accès JWT obtenu avec OAuth 2.0. Fournisseur, flux, noms des scopes distincts
+    montre/patient/soignant et lien avec les entités métier restent à valider. Aucun flux OAuth
+    ni scope fictif n’est déclaré. Prism ne vérifie pas les signatures JWT ou les droits métier.
