@@ -1,0 +1,35 @@
+meta {
+  name: 06 PATCH seuil valeur nulle (mock)
+  type: http
+  seq: 6
+}
+
+patch {
+  url: {{baseUrl}}/patients/{{patientId}}/seuils/{{seuilId}}
+  body: json
+  auth: bearer
+}
+
+auth:bearer {
+  token: {{token}}
+}
+
+headers {
+  Content-Type: application/json
+}
+
+body:json {
+  {
+    "valeurMin": null
+  }
+}
+
+tests {
+  test("valeur nulle refusée avec 400", function() {
+    expect(res.getStatus()).to.equal(400);
+  });
+
+  test("erreur au format problem+json", function() {
+    expect(res.getHeader("content-type")).to.contain("application/problem+json");
+  });
+}

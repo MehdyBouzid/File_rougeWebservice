@@ -21,8 +21,8 @@ headers {
 body:json {
   {
     "typeMesure": "FREQUENCE_CARDIAQUE",
-    "valeurMin": 50,
-    "valeurMax": 120
+    "valeurMin": 60,
+    "valeurMax": 100
   }
 }
 
@@ -34,4 +34,20 @@ tests {
   test("en-tête Location présent", function() {
     expect(res.getHeader("location")).to.be.a("string");
   });
+
+  test("réponse JSON de création conforme", function() {
+    expect(res.getHeader("content-type")).to.contain("application/json");
+    const body = res.getBody();
+    expect(body).to.include.all.keys("seuilId", "patientId", "typeMesure", "valeurMin", "valeurMax", "actif");
+    expect(["FREQUENCE_CARDIAQUE", "SPO2", "PAS"]).to.include(body.typeMesure);
+    expect(body.valeurMin).to.be.a("number");
+    expect(body.valeurMax).to.be.a("number");
+    expect(body.valeurMin).to.be.at.most(body.valeurMax);
+    expect(body.actif).to.equal(true);
+  });
+}
+
+docs {
+  Vérifie les échanges et l'exemple de réponse de Prism, sans prouver l'activation,
+  la comparaison des bornes ou l'unicité dans le backend. Les identifiants restent illustratifs.
 }

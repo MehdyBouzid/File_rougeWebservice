@@ -6,9 +6,12 @@ collection:
     operationId: listPatientThresholds
     summary: Consulter les seuils configurés pour surveiller les mesures d’un patient.
     description:
-      Le soignant doit suivre le patient et disposer des autorisations nécessaires.
-      Le contrôle du consentement reste à valider pour cette opération.
+      Scope soignant requis (403 sinon). Le patient doit exister et être suivi par le soignant ;
+      sinon 404 (BOLA). Le contrôle du consentement reste à valider ; s’il est retenu, son absence
+      ou son retrait renvoie aussi 404.
     x-caller: soignant
+    security:
+      - bearerAuth: [soignant]
     responses:
       "200":
         description: Les seuils configurés pour le patient sont récupérés.
@@ -19,16 +22,7 @@ collection:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description:
-          Le soignant ne suit pas le patient ou n’a pas les autorisations nécessaires pour
-          consulter ses seuils.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
       "404":
         $ref: "../components/responses.yaml#/PatientNotFound"
     parameters:
@@ -42,8 +36,14 @@ collection:
       patient.
     description:
       Un seul seuil actif est autorisé par patient et type de mesure.
-      Le soignant doit suivre le patient ; le contrôle du consentement reste à valider.
+      Le nouveau seuil est automatiquement actif. Les bornes doivent respecter
+      valeurMin <= valeurMax ; le backend réalise cette comparaison.
+      Scope soignant requis (403 sinon). Le patient doit exister et être suivi par le soignant ;
+      sinon 404 (BOLA, en écriture). Le contrôle du consentement reste à valider ; s’il est retenu,
+      son absence renvoie aussi 404.
     x-caller: soignant
+    security:
+      - bearerAuth: [soignant]
     responses:
       "201":
         description: Le nouveau seuil du patient a été enregistré.
@@ -51,18 +51,27 @@ collection:
           application/json:
             schema:
               $ref: "../components/schemas.yaml#/Threshold"
+            example:
+              seuilId: seuil-001
+              patientId: patient-001
+              typeMesure: FREQUENCE_CARDIAQUE
+              valeurMin: 60
+              valeurMax: 100
+              actif: true
         headers:
+          ETag:
+            $ref: "../components/cache.yaml#/headers/ETag"
           Location:
-            description: URI identifiant la ressource créée.
+            description: URI identifiant la ressource créée. Elle désigne le GET individuel du seuil.
             required: true
             schema:
               type: string
               format: uri-reference
-            example: /patients/42/seuils/7
+            example: /patients/patient-001/seuils/seuil-001
       "400":
         description:
-          Les données du seuil sont invalides ; les critères précis de validation restent à
-          définir.
+          Propriété obligatoire absente, type invalide, valeur nulle, propriété inconnue
+          ou valeurMin supérieure à valeurMax.
         content:
           application/problem+json:
             schema:
@@ -73,16 +82,7 @@ collection:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description:
-          Le soignant ne suit pas le patient ou n’a pas les autorisations nécessaires pour créer
-          un seuil.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
       "404":
         $ref: "../components/responses.yaml#/PatientNotFound"
       "409":
@@ -102,9 +102,56 @@ collection:
         application/json:
           schema:
             $ref: "../components/schemas.yaml#/ThresholdCreate"
+          example:
+            typeMesure: FREQUENCE_CARDIAQUE
+            valeurMin: 60
+            valeurMax: 100
 
-# PATCH /patients/{patientId}/seuils/{seuilId}
+# GET et PATCH /patients/{patientId}/seuils/{seuilId}
 item:
+  get:
+    tags:
+      - Seuils
+    operationId: getPatientThreshold
+    summary: Consulter un seuil d’un patient et obtenir son ETag pour une modification conditionnelle.
+    description:
+      Scope soignant requis (403 sinon). Le patient doit exister et être suivi, et le seuil doit lui
+      appartenir ; sinon 404 (BOLA). Le contrôle du consentement reste à valider ; s’il est retenu,
+      son absence renvoie aussi 404. La réponse porte l’ETag à renvoyer dans If-Match pour le PATCH.
+      Si If-None-Match correspond à l’état courant, la réponse est 304 sans corps ; cette
+      précondition n’est évaluée que si la requête aurait abouti en 200.
+    x-caller: soignant
+    security:
+      - bearerAuth: [soignant]
+    responses:
+      "200":
+        description: Le seuil demandé est récupéré, avec son ETag.
+        content:
+          application/json:
+            schema:
+              $ref: "../components/schemas.yaml#/Threshold"
+            example:
+              seuilId: seuil-001
+              patientId: patient-001
+              typeMesure: FREQUENCE_CARDIAQUE
+              valeurMin: 60
+              valeurMax: 100
+              actif: true
+        headers:
+          ETag:
+            $ref: "../components/cache.yaml#/headers/ETag"
+      "304":
+        $ref: "../components/cache.yaml#/responses/NotModified"
+      "401":
+        $ref: "../components/responses.yaml#/Unauthorized"
+      "403":
+        $ref: "../components/responses.yaml#/Forbidden"
+      "404":
+        $ref: "../components/responses.yaml#/ThresholdNotFound"
+    parameters:
+      - $ref: "../components/parameters.yaml#/patientId"
+      - $ref: "../components/parameters.yaml#/seuilId"
+      - $ref: "../components/cache.yaml#/parameters/ifNoneMatch"
   patch:
     tags:
       - Seuils
@@ -115,19 +162,38 @@ item:
     description:
       Un seul seuil actif est autorisé par patient et type de mesure.
       La désactivation conserve le seuil.
-      Le soignant doit suivre le patient ; le contrôle du consentement reste à valider.
+      Le backend vérifie valeurMin <= valeurMax sur l’état final, en combinant
+      les modifications avec les valeurs conservées. Le corps doit être non vide.
+      Scope soignant requis (403 sinon). Le patient doit exister et être suivi, et le seuil doit lui
+      appartenir ; sinon 404 (BOLA, en écriture), y compris pour un seuil d’un autre patient. Le
+      contrôle du consentement reste à valider ; s’il est retenu, son absence renvoie aussi 404.
+      If-Match est exigé, absent il donne 428 ; ne correspondant plus à l’état courant, 412. Ordre des
+      contrôles, 401, 403, 404, 428, 412 (RFC 9110, les préconditions précèdent le traitement du
+      contenu), puis 400 et 409. Le backend devra vérifier l’ETag et écrire dans une même transaction.
     x-caller: soignant
+    security:
+      - bearerAuth: [soignant]
     responses:
       "200":
-        description: Les valeurs ou l’état du seuil ont été modifiés.
+        description: Les valeurs ou l’état du seuil ont été modifiés ; la réponse porte le nouvel ETag.
         content:
           application/json:
             schema:
               $ref: "../components/schemas.yaml#/Threshold"
+            example:
+              seuilId: seuil-001
+              patientId: patient-001
+              typeMesure: FREQUENCE_CARDIAQUE
+              valeurMin: 55
+              valeurMax: 110
+              actif: true
+        headers:
+          ETag:
+            $ref: "../components/cache.yaml#/headers/ETag"
       "400":
         description:
-          Les nouvelles données du seuil sont invalides ; les critères précis de validation
-          restent à définir.
+          Corps vide, valeur nulle, type invalide, propriété inconnue ou bornes finales
+          ne respectant pas valeurMin <= valeurMax.
         content:
           application/problem+json:
             schema:
@@ -138,17 +204,7 @@ item:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description:
-          Le soignant n’a pas les autorisations nécessaires ou ne suit pas le patient. Le seuil
-          doit également appartenir au patient indiqué ; le code de refus pour une discordance
-          reste à valider.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
       "404":
         description: Le patient ou le seuil demandé est introuvable.
         content:
@@ -167,12 +223,21 @@ item:
             examples:
               erreur:
                 $ref: "../components/examples.yaml#/Conflict"
+      "412":
+        $ref: "../components/cache.yaml#/responses/PreconditionFailed"
+      "428":
+        $ref: "../components/cache.yaml#/responses/PreconditionRequired"
     parameters:
       - $ref: "../components/parameters.yaml#/patientId"
       - $ref: "../components/parameters.yaml#/seuilId"
+      - $ref: "../components/cache.yaml#/parameters/ifMatch"
     requestBody:
       required: true
       content:
         application/json:
           schema:
             $ref: "../components/schemas.yaml#/ThresholdPatch"
+          example:
+            valeurMin: 55
+            valeurMax: 110
+            actif: true

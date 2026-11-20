@@ -6,9 +6,12 @@ collection:
     operationId: listPatients
     summary: Afficher les patients suivis par le soignant connecté.
     description:
-      Seuls les patients suivis par le soignant connecté sont accessibles.
-      Le contrôle du consentement reste à valider pour cette opération.
+      Scope soignant requis (403 sinon). La collection ne contient que les patients accessibles au
+      soignant connecté ; un patient non suivi n’apparaît jamais. Le contrôle du consentement reste
+      à valider ; s’il est retenu, les patients sans consentement valide sont aussi exclus.
     x-caller: soignant
+    security:
+      - bearerAuth: [soignant]
     responses:
       "200":
         description: La liste paginée des patients suivis par le soignant connecté est récupérée.
@@ -30,14 +33,7 @@ collection:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description: L’appelant authentifié n’est pas autorisé à consulter la liste des patients.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
     parameters:
       - $ref: "../components/parameters.yaml#/page"
       - $ref: "../components/parameters.yaml#/size"
@@ -50,9 +46,12 @@ item:
     operationId: getPatient
     summary: Consulter les informations d’un patient suivi.
     description:
-      Le soignant doit suivre le patient et disposer des autorisations nécessaires.
-      Le contrôle du consentement reste à valider pour cette opération.
+      Scope soignant requis (403 sinon). Le patient doit exister et être suivi par le soignant ;
+      sinon 404, sans distinguer les deux cas (BOLA). Le contrôle du consentement reste à valider ;
+      s’il est retenu, son absence ou son retrait renvoie aussi 404.
     x-caller: soignant
+    security:
+      - bearerAuth: [soignant]
     responses:
       "200":
         description: Les informations du patient suivi sont récupérées.
@@ -63,16 +62,7 @@ item:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description:
-          Le soignant ne suit pas le patient ou n’a pas les autorisations nécessaires pour
-          consulter ses informations.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
       "404":
         $ref: "../components/responses.yaml#/PatientNotFound"
     parameters:

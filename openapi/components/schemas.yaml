@@ -50,21 +50,76 @@ Patient:
   description:
     "Informations du patient : identifiant, nom, prénom et date de naissance. Structure
     JSON à définir."
-Threshold:
+MeasurementType:
+  type: string
+  enum:
+    - FREQUENCE_CARDIAQUE
+    - SPO2
+    - PAS
   description:
-    Identifiant, type de mesure, valeurs minimale et maximale et état actif du seuil.
-    Structure JSON à définir.
+    Type commun aux seuils et aux alertes. Correspond respectivement aux champs
+    frequenceCardiaque, spo2 et pas des relevés ; pas compte les pas depuis le relevé précédent.
+Threshold:
+  type: object
+  properties:
+    seuilId:
+      $ref: "#/Identifier"
+    patientId:
+      $ref: "#/Identifier"
+    typeMesure:
+      $ref: "#/MeasurementType"
+    valeurMin:
+      type: number
+    valeurMax:
+      type: number
+    actif:
+      type: boolean
+      description: Le backend active automatiquement le seuil à sa création.
+  required:
+    - seuilId
+    - patientId
+    - typeMesure
+    - valeurMin
+    - valeurMax
+    - actif
+  description:
+    Seuil du patient. Le backend garantit valeurMin <= valeurMax et un seul seuil actif
+    par patient et type de mesure. Les types et formats des identifiants restent ouverts.
 ThresholdCreate:
   type: object
+  additionalProperties: false
+  properties:
+    typeMesure:
+      $ref: "#/MeasurementType"
+    valeurMin:
+      type: number
+    valeurMax:
+      type: number
+  required:
+    - typeMesure
+    - valeurMin
+    - valeurMax
   description:
-    Le type de mesure et les valeurs minimale et maximale sont nécessaires métier. Leurs
-    noms JSON et validations ne sont pas arrêtés ; aucun nom de champ issu du MCD n’est imposé
-    au corps JSON.
+    Les trois propriétés sont obligatoires et non nulles ; les propriétés inconnues sont
+    refusées. Le patient vient du chemin et actif est fixé à true par le backend.
+    Le backend vérifie valeurMin <= valeurMax, égalité autorisée ; cette comparaison entre
+    propriétés n’est pas exprimable par les contraintes JSON Schema standard utilisées ici.
 ThresholdPatch:
   type: object
+  additionalProperties: false
+  minProperties: 1
+  properties:
+    valeurMin:
+      type: number
+    valeurMax:
+      type: number
+    actif:
+      type: boolean
   description:
-    Valeurs minimale, maximale et état actif sont facultatifs ; seuls les champs à modifier
-    sont transmis. Noms JSON et comportement du corps vide restent à définir.
+    Au moins une propriété est requise ; chacune est facultative individuellement.
+    Corps vide, valeurs nulles et propriétés inconnues sont refusés. Le type de mesure
+    et le patient ne sont pas modifiables. Après fusion avec les valeurs conservées,
+    le backend vérifie valeurMin <= valeurMax ; cette comparaison n’est pas validée par le schéma.
 AlertStatus:
   type: string
   enum:
@@ -82,8 +137,7 @@ AlertSummary:
     prenomPatient:
       type: string
     typeMesure:
-      type: string
-      description: Type de mesure concerné ; les valeurs autorisées restent à définir.
+      $ref: "#/MeasurementType"
     horodatage:
       type: string
       format: date-time
@@ -109,8 +163,7 @@ AlertDetail:
     patientId:
       $ref: "#/Identifier"
     typeMesure:
-      type: string
-      description: Type de mesure concerné ; les valeurs autorisées restent à définir.
+      $ref: "#/MeasurementType"
     valeurMesuree:
       type: number
       description: Valeur de la mesure ayant déclenché l’alerte.
@@ -188,4 +241,6 @@ ConsentList:
     "Consentements du patient connecté : identifiant, soignant, dates et état. Format de
     liste, valeurs de l’état, présence et nullabilité de la date de fin à définir."
 ThresholdList:
-  description: Seuils du patient avec leurs valeurs et leur état. Format de liste et noms JSON à définir.
+  description:
+    Liste de seuils du patient dont chaque élément est décrit par Threshold.
+    L’enveloppe JSON reste à définir ; ce schéma ne contraint pas encore la structure de la liste.

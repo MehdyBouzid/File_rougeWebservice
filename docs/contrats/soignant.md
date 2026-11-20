@@ -1,26 +1,30 @@
 # Soignant — Décision V1
 
+Le soignant est le professionnel qui suit les patients. En V1, il n’a **pas d’endpoint dédié** : il est un appelant authentifié et une entité du modèle.
+
 ## Rôle dans le modèle
 
-L’entité `SOIGNANT` représente le professionnel qui suit les patients. Le [MCD](../design.md#4-modélisation-des-données) décrit trois associations :
+L’entité `SOIGNANT` est reliée au reste par trois associations du [MCD](../design.md#4-modélisation-des-données) :
 
-- `SUIVRE` : relie le soignant aux patients suivis.
-- `CONCERNER` : relie un consentement au soignant concerné ; `DONNER` le rattache au patient.
-- `RECEVOIR` : relie les alertes à leurs destinataires. Leur sélection reste à préciser.
+```text
+SOIGNANT ──SUIVRE────► PATIENT        patients suivis
+SOIGNANT ◄─CONCERNER── CONSENTEMENT   (DONNER le rattache au patient)
+SOIGNANT ◄─RECEVOIR──► ALERTE         destinataires, sélection à préciser
+```
 
 ## Décision V1
 
-Aucun JSON, schéma OpenAPI ou endpoint REST dédié à `Soignant` n’est prévu en V1. Les [opérations actuelles](../api.md) répondent au besoin d’accéder aux données des patients suivis ; aucun besoin de consultation des profils de soignants n’est défini.
-
-Le soignant reste donc une entité métier et un appelant authentifié. Les échanges existants peuvent référencer son identifiant, sans exposer son profil.
+Aucun JSON, schéma OpenAPI ni endpoint REST n’est prévu pour `Soignant`. Les [opérations actuelles](../api.md) suffisent pour accéder aux données des patients suivis, et aucun besoin de consulter des profils de soignants n’est défini. Les échanges peuvent référencer son identifiant sans exposer son profil.
 
 ## Conséquences pour le backend
 
-Le backend devra identifier le soignant authentifié, vérifier son jeton JWT, ses autorisations et le suivi du patient concerné, même sans endpoint dédié.
+Même sans endpoint dédié, le backend devra :
 
-Un consentement valide est exigé pour consulter les mesures et le détail d’une alerte. Son contrôle pour les autres consultations et actions reste à valider, selon la [revue des réponses HTTP](../api-review.md) et la [conception](../design.md#périmètre-du-contrôle-du-consentement).
+- identifier le soignant et vérifier son jeton JWT et son scope soignant (`403` si le scope est insuffisant) ;
+- vérifier qu’il suit le patient concerné (`404` si le patient est inexistant ou non suivi par le soignant) ;
+- exiger un consentement valide pour consulter les mesures et le détail d’une alerte ; son absence ou son retrait place l’objet hors du périmètre (`404`).
 
-Le lien entre l’identité OAuth et l’entité `SOIGNANT` reste à définir. Ces exigences ne signifient pas que la sécurité est déjà implémentée.
+Le contrôle du consentement pour les autres consultations et actions reste à valider, selon la [revue des réponses HTTP](../api-review.md) et la [conception](../design.md#périmètre-du-contrôle-du-consentement). Le lien entre l’identité OAuth et l’entité `SOIGNANT` reste à définir. Rien de cela n’est implémenté.
 
 ## Évolution possible : afficher le soignant d'un patient
 

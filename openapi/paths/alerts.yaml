@@ -6,9 +6,13 @@ collection:
     operationId: listAlerts
     summary: Afficher les alertes des patients suivis, qu’elles soient actives ou déjà traitées.
     description:
-      Les alertes concernent uniquement les patients suivis par le soignant connecté.
-      Le contrôle du consentement reste à valider pour cette opération.
+      Scope soignant requis (403 sinon). La collection ne contient que les alertes accessibles au
+      soignant connecté, quels que soient les filtres, car un filtre patientId sur un patient inexistant
+      ou non accessible donne une liste vide en 200, jamais 403 ni 404. Le contrôle du consentement
+      reste à valider ; s’il est retenu, les alertes sans consentement valide sont aussi exclues.
     x-caller: soignant
+    security:
+      - bearerAuth: [soignant]
     responses:
       "200":
         description:
@@ -32,14 +36,7 @@ collection:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description: L’appelant authentifié n’est pas autorisé à consulter les alertes.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
     parameters:
       - $ref: "../components/parameters.yaml#/patientFilter"
       - $ref: "../components/parameters.yaml#/status"
@@ -58,9 +55,11 @@ item:
       Consulter les détails d’une alerte pour identifier le patient concerné et la mesure qui l’a
       déclenchée.
     description:
-      Le soignant doit suivre le patient et disposer des autorisations nécessaires
-      et d’un consentement valide.
+      Scope soignant requis (403 sinon). L’alerte doit exister, concerner un patient suivi par le
+      soignant et être couverte par un consentement valide ; sinon 404, sans distinguer les cas (BOLA).
     x-caller: soignant
+    security:
+      - bearerAuth: [soignant]
     responses:
       "200":
         description: Les détails de l’alerte demandée sont récupérés.
@@ -79,16 +78,7 @@ item:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description:
-          Le soignant ne suit pas le patient concerné, n’a pas les autorisations nécessaires ou
-          ne dispose pas d’un consentement valide.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
       "404":
         $ref: "../components/responses.yaml#/AlertNotFound"
     parameters:
@@ -101,8 +91,12 @@ item:
     description:
       Seule la transition ACTIVE vers TRAITEE est prévue, sans réactivation.
       Les alertes traitées sont conservées dans l’historique.
-      Le soignant doit suivre le patient ; le contrôle du consentement reste à valider.
+      Scope soignant requis (403 sinon). L’alerte doit exister et concerner un patient suivi ;
+      sinon 404 (BOLA, en écriture comme en lecture). Le contrôle du consentement reste à valider ;
+      s’il est retenu, son absence renvoie aussi 404.
     x-caller: soignant
+    security:
+      - bearerAuth: [soignant]
     x-pending-decision: Préciser la frontière entre statut invalide (400) et transition interdite (409).
     responses:
       "200":
@@ -131,16 +125,7 @@ item:
       "401":
         $ref: "../components/responses.yaml#/Unauthorized"
       "403":
-        description:
-          L’appelant authentifié n’est pas autorisé à traiter cette alerte, notamment s’il ne
-          suit pas le patient concerné.
-        content:
-          application/problem+json:
-            schema:
-              $ref: "../components/schemas.yaml#/Problem"
-            examples:
-              erreur:
-                $ref: "../components/examples.yaml#/Forbidden"
+        $ref: "../components/responses.yaml#/Forbidden"
       "404":
         $ref: "../components/responses.yaml#/AlertNotFound"
       "409":

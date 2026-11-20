@@ -30,8 +30,11 @@ paths:
         - Mesures
       operationId: ingestMeasurements
       summary: Enregistrer les mesures envoyées par les montres connectées pour assurer le suivi des patients.
-      description: Le simulateur transmet un lot pour le patient indiqué par patientId ; l’émetteur authentifié doit être autorisé à transmettre pour ce patient. Un relevé invalide entraîne le rejet complet du lot ; l’enregistrement est atomique. Tout batchId existant entraîne 409, contenu identique ou différent. L’évaluation des seuils suit l’enregistrement dans le parcours décrit ; l’ordre technique et ses garanties restent à valider.
+      description: Le simulateur transmet un lot pour le patient indiqué par patientId ; Scope montre requis (403 sinon). Si le patient est inexistant ou n’est pas rattaché à l’émetteur authentifié, la réponse est 404 (BOLA en écriture) ; patientId seul n’autorise pas l’envoi. Un relevé invalide entraîne le rejet complet du lot ; l’enregistrement est atomique. Tout batchId existant entraîne 409, contenu identique ou différent. L’évaluation des seuils suit l’enregistrement dans le parcours décrit ; l’ordre technique et ses garanties restent à valider.
       x-caller: simulateur
+      security:
+        - bearerAuth:
+            - montre
       responses:
         '201':
           description: Le lot a été validé et enregistré avec toutes ses mesures dans une transaction.
@@ -59,14 +62,9 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: L’appelant authentifié n’est pas autorisé à transmettre les mesures.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/PatientNotFound'
         '409':
           description: Le `batchId` a déjà été utilisé, que le contenu soit identique ou différent ; aucune nouvelle mesure n’est enregistrée.
           content:
@@ -96,8 +94,11 @@ paths:
         - Mesures
       operationId: listPatientMeasurements
       summary: Récupérer les mesures d’un patient sur une période donnée pour suivre leur évolution.
-      description: Le soignant doit suivre le patient et disposer des autorisations nécessaires et d’un consentement valide.
+      description: Scope soignant requis (403 sinon). Le patient doit exister, être suivi par le soignant et avoir donné un consentement valide ; sinon 404, sans distinguer les cas (BOLA).
       x-caller: soignant
+      security:
+        - bearerAuth:
+            - soignant
       responses:
         '200':
           description: Les mesures du patient correspondant à la période et à la page demandées sont récupérées.
@@ -117,14 +118,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Le soignant n’a pas les autorisations nécessaires, ne suit pas le patient ou ne dispose pas d’un consentement valide.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/PatientNotFound'
       parameters:
@@ -139,8 +133,11 @@ paths:
         - Patients
       operationId: listPatients
       summary: Afficher les patients suivis par le soignant connecté.
-      description: Seuls les patients suivis par le soignant connecté sont accessibles. Le contrôle du consentement reste à valider pour cette opération.
+      description: Scope soignant requis (403 sinon). La collection ne contient que les patients accessibles au soignant connecté ; un patient non suivi n’apparaît jamais. Le contrôle du consentement reste à valider ; s’il est retenu, les patients sans consentement valide sont aussi exclus.
       x-caller: soignant
+      security:
+        - bearerAuth:
+            - soignant
       responses:
         '200':
           description: La liste paginée des patients suivis par le soignant connecté est récupérée.
@@ -160,14 +157,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: L’appelant authentifié n’est pas autorisé à consulter la liste des patients.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
       parameters:
         - $ref: '#/components/parameters/page'
         - $ref: '#/components/parameters/size'
@@ -177,8 +167,11 @@ paths:
         - Patients
       operationId: getPatient
       summary: Consulter les informations d’un patient suivi.
-      description: Le soignant doit suivre le patient et disposer des autorisations nécessaires. Le contrôle du consentement reste à valider pour cette opération.
+      description: Scope soignant requis (403 sinon). Le patient doit exister et être suivi par le soignant ; sinon 404, sans distinguer les deux cas (BOLA). Le contrôle du consentement reste à valider ; s’il est retenu, son absence ou son retrait renvoie aussi 404.
       x-caller: soignant
+      security:
+        - bearerAuth:
+            - soignant
       responses:
         '200':
           description: Les informations du patient suivi sont récupérées.
@@ -189,14 +182,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Le soignant ne suit pas le patient ou n’a pas les autorisations nécessaires pour consulter ses informations.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/PatientNotFound'
       parameters:
@@ -207,8 +193,11 @@ paths:
         - Alertes
       operationId: listAlerts
       summary: Afficher les alertes des patients suivis, qu’elles soient actives ou déjà traitées.
-      description: Les alertes concernent uniquement les patients suivis par le soignant connecté. Le contrôle du consentement reste à valider pour cette opération.
+      description: Scope soignant requis (403 sinon). La collection ne contient que les alertes accessibles au soignant connecté, quels que soient les filtres, car un filtre patientId sur un patient inexistant ou non accessible donne une liste vide en 200, jamais 403 ni 404. Le contrôle du consentement reste à valider ; s’il est retenu, les alertes sans consentement valide sont aussi exclues.
       x-caller: soignant
+      security:
+        - bearerAuth:
+            - soignant
       responses:
         '200':
           description: Les alertes des patients suivis sont récupérées selon les filtres et la pagination demandés. Chaque élément est décrit par AlertSummary ; l’enveloppe paginée reste ouverte.
@@ -228,14 +217,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: L’appelant authentifié n’est pas autorisé à consulter les alertes.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
       parameters:
         - $ref: '#/components/parameters/patientFilter'
         - $ref: '#/components/parameters/status'
@@ -249,8 +231,11 @@ paths:
         - Alertes
       operationId: getAlert
       summary: Consulter les détails d’une alerte pour identifier le patient concerné et la mesure qui l’a déclenchée.
-      description: Le soignant doit suivre le patient et disposer des autorisations nécessaires et d’un consentement valide.
+      description: Scope soignant requis (403 sinon). L’alerte doit exister, concerner un patient suivi par le soignant et être couverte par un consentement valide ; sinon 404, sans distinguer les cas (BOLA).
       x-caller: soignant
+      security:
+        - bearerAuth:
+            - soignant
       responses:
         '200':
           description: Les détails de l’alerte demandée sont récupérés.
@@ -269,14 +254,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Le soignant ne suit pas le patient concerné, n’a pas les autorisations nécessaires ou ne dispose pas d’un consentement valide.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/AlertNotFound'
       parameters:
@@ -286,8 +264,11 @@ paths:
         - Alertes
       operationId: acknowledgeAlert
       summary: Marquer une alerte comme traitée après sa prise en charge par le soignant.
-      description: Seule la transition ACTIVE vers TRAITEE est prévue, sans réactivation. Les alertes traitées sont conservées dans l’historique. Le soignant doit suivre le patient ; le contrôle du consentement reste à valider.
+      description: Seule la transition ACTIVE vers TRAITEE est prévue, sans réactivation. Les alertes traitées sont conservées dans l’historique. Scope soignant requis (403 sinon). L’alerte doit exister et concerner un patient suivi ; sinon 404 (BOLA, en écriture comme en lecture). Le contrôle du consentement reste à valider ; s’il est retenu, son absence renvoie aussi 404.
       x-caller: soignant
+      security:
+        - bearerAuth:
+            - soignant
       x-pending-decision: Préciser la frontière entre statut invalide (400) et transition interdite (409).
       responses:
         '200':
@@ -316,14 +297,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: L’appelant authentifié n’est pas autorisé à traiter cette alerte, notamment s’il ne suit pas le patient concerné.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/AlertNotFound'
         '409':
@@ -354,8 +328,11 @@ paths:
         - Consentements
       operationId: listMyConsents
       summary: Consulter les consentements donnés par le patient connecté.
-      description: Les consentements sont ceux du patient identifié par son authentification.
+      description: Scope patient requis (403 sinon). Les consentements sont ceux du patient identifié par son authentification ; la collection ne contient jamais ceux d’un autre patient.
       x-caller: patient
+      security:
+        - bearerAuth:
+            - patient
       responses:
         '200':
           description: Les consentements du patient identifié par son authentification sont récupérés.
@@ -366,22 +343,18 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: L’appelant authentifié n’est pas autorisé à consulter les consentements en tant que patient.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
   /patients/me/consents/{consentId}:
     delete:
       tags:
         - Consentements
       operationId: withdrawConsent
       summary: Retirer un consentement précédemment donné pour mettre fin aux accès concernés.
-      description: Le retrait conserve le consentement, sa trace et l’historique des données ; il empêche les accès futurs concernés. 403 si le consentement appartient à un autre patient ; 404 s’il est introuvable.
+      description: Le retrait conserve le consentement, sa trace et l’historique des données ; il empêche les accès futurs concernés. Scope patient requis (403 sinon). Un consentement inexistant ou appartenant à un autre patient renvoie 404, sans distinguer les deux cas (BOLA).
       x-caller: patient
+      security:
+        - bearerAuth:
+            - patient
       x-pending-decision: Définir le comportement d’un retrait déjà effectué.
       responses:
         '204':
@@ -389,14 +362,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Le consentement existe mais appartient à un autre patient.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '404':
           description: Le consentement demandé est introuvable.
           content:
@@ -414,8 +380,11 @@ paths:
         - Seuils
       operationId: listPatientThresholds
       summary: Consulter les seuils configurés pour surveiller les mesures d’un patient.
-      description: Le soignant doit suivre le patient et disposer des autorisations nécessaires. Le contrôle du consentement reste à valider pour cette opération.
+      description: Scope soignant requis (403 sinon). Le patient doit exister et être suivi par le soignant ; sinon 404 (BOLA). Le contrôle du consentement reste à valider ; s’il est retenu, son absence ou son retrait renvoie aussi 404.
       x-caller: soignant
+      security:
+        - bearerAuth:
+            - soignant
       responses:
         '200':
           description: Les seuils configurés pour le patient sont récupérés.
@@ -426,14 +395,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Le soignant ne suit pas le patient ou n’a pas les autorisations nécessaires pour consulter ses seuils.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/PatientNotFound'
       parameters:
@@ -443,8 +405,11 @@ paths:
         - Seuils
       operationId: createPatientThreshold
       summary: Créer un seuil définissant les limites qui déclenchent des alertes pour les mesures d’un patient.
-      description: Un seul seuil actif est autorisé par patient et type de mesure. Le soignant doit suivre le patient ; le contrôle du consentement reste à valider.
+      description: Un seul seuil actif est autorisé par patient et type de mesure. Le nouveau seuil est automatiquement actif. Les bornes doivent respecter valeurMin <= valeurMax ; le backend réalise cette comparaison. Scope soignant requis (403 sinon). Le patient doit exister et être suivi par le soignant ; sinon 404 (BOLA, en écriture). Le contrôle du consentement reste à valider ; s’il est retenu, son absence renvoie aussi 404.
       x-caller: soignant
+      security:
+        - bearerAuth:
+            - soignant
       responses:
         '201':
           description: Le nouveau seuil du patient a été enregistré.
@@ -452,16 +417,25 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Threshold'
+              example:
+                seuilId: seuil-001
+                patientId: patient-001
+                typeMesure: FREQUENCE_CARDIAQUE
+                valeurMin: 60
+                valeurMax: 100
+                actif: true
           headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
             Location:
-              description: URI identifiant la ressource créée.
+              description: URI identifiant la ressource créée. Elle désigne le GET individuel du seuil.
               required: true
               schema:
                 type: string
                 format: uri-reference
-              example: /patients/42/seuils/7
+              example: /patients/patient-001/seuils/seuil-001
         '400':
-          description: Les données du seuil sont invalides ; les critères précis de validation restent à définir.
+          description: Propriété obligatoire absente, type invalide, valeur nulle, propriété inconnue ou valeurMin supérieure à valeurMax.
           content:
             application/problem+json:
               schema:
@@ -472,14 +446,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Le soignant ne suit pas le patient ou n’a pas les autorisations nécessaires pour créer un seuil.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '404':
           $ref: '#/components/responses/PatientNotFound'
         '409':
@@ -499,23 +466,79 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ThresholdCreate'
+            example:
+              typeMesure: FREQUENCE_CARDIAQUE
+              valeurMin: 60
+              valeurMax: 100
   /patients/{patientId}/seuils/{seuilId}:
+    get:
+      tags:
+        - Seuils
+      operationId: getPatientThreshold
+      summary: Consulter un seuil d’un patient et obtenir son ETag pour une modification conditionnelle.
+      description: Scope soignant requis (403 sinon). Le patient doit exister et être suivi, et le seuil doit lui appartenir ; sinon 404 (BOLA). Le contrôle du consentement reste à valider ; s’il est retenu, son absence renvoie aussi 404. La réponse porte l’ETag à renvoyer dans If-Match pour le PATCH. Si If-None-Match correspond à l’état courant, la réponse est 304 sans corps ; cette précondition n’est évaluée que si la requête aurait abouti en 200.
+      x-caller: soignant
+      security:
+        - bearerAuth:
+            - soignant
+      responses:
+        '200':
+          description: Le seuil demandé est récupéré, avec son ETag.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Threshold'
+              example:
+                seuilId: seuil-001
+                patientId: patient-001
+                typeMesure: FREQUENCE_CARDIAQUE
+                valeurMin: 60
+                valeurMax: 100
+                actif: true
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
+        '304':
+          $ref: '#/components/responses/NotModified'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/ThresholdNotFound'
+      parameters:
+        - $ref: '#/components/parameters/patientId'
+        - $ref: '#/components/parameters/seuilId'
+        - $ref: '#/components/parameters/ifNoneMatch'
     patch:
       tags:
         - Seuils
       operationId: updatePatientThreshold
       summary: Adapter les valeurs d’un seuil ou l’activer ou le désactiver pour ajuster la surveillance du patient.
-      description: Un seul seuil actif est autorisé par patient et type de mesure. La désactivation conserve le seuil. Le soignant doit suivre le patient ; le contrôle du consentement reste à valider.
+      description: Un seul seuil actif est autorisé par patient et type de mesure. La désactivation conserve le seuil. Le backend vérifie valeurMin <= valeurMax sur l’état final, en combinant les modifications avec les valeurs conservées. Le corps doit être non vide. Scope soignant requis (403 sinon). Le patient doit exister et être suivi, et le seuil doit lui appartenir ; sinon 404 (BOLA, en écriture), y compris pour un seuil d’un autre patient. Le contrôle du consentement reste à valider ; s’il est retenu, son absence renvoie aussi 404. If-Match est exigé, absent il donne 428 ; ne correspondant plus à l’état courant, 412. Ordre des contrôles, 401, 403, 404, 428, 412 (RFC 9110, les préconditions précèdent le traitement du contenu), puis 400 et 409. Le backend devra vérifier l’ETag et écrire dans une même transaction.
       x-caller: soignant
+      security:
+        - bearerAuth:
+            - soignant
       responses:
         '200':
-          description: Les valeurs ou l’état du seuil ont été modifiés.
+          description: Les valeurs ou l’état du seuil ont été modifiés ; la réponse porte le nouvel ETag.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/Threshold'
+              example:
+                seuilId: seuil-001
+                patientId: patient-001
+                typeMesure: FREQUENCE_CARDIAQUE
+                valeurMin: 55
+                valeurMax: 110
+                actif: true
+          headers:
+            ETag:
+              $ref: '#/components/headers/ETag'
         '400':
-          description: Les nouvelles données du seuil sont invalides ; les critères précis de validation restent à définir.
+          description: Corps vide, valeur nulle, type invalide, propriété inconnue ou bornes finales ne respectant pas valeurMin <= valeurMax.
           content:
             application/problem+json:
               schema:
@@ -526,14 +549,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
-          description: Le soignant n’a pas les autorisations nécessaires ou ne suit pas le patient. Le seuil doit également appartenir au patient indiqué ; le code de refus pour une discordance reste à valider.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Forbidden'
+          $ref: '#/components/responses/Forbidden'
         '404':
           description: Le patient ou le seuil demandé est introuvable.
           content:
@@ -552,19 +568,28 @@ paths:
               examples:
                 erreur:
                   $ref: '#/components/examples/Conflict'
+        '412':
+          $ref: '#/components/responses/PreconditionFailed'
+        '428':
+          $ref: '#/components/responses/PreconditionRequired'
       parameters:
         - $ref: '#/components/parameters/patientId'
         - $ref: '#/components/parameters/seuilId'
+        - $ref: '#/components/parameters/ifMatch'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/ThresholdPatch'
+            example:
+              valeurMin: 55
+              valeurMax: 110
+              actif: true
 components:
   responses:
     Unauthorized:
-      description: L’authentification de l’appelant est invalide ; aucun appelant authentifié ne peut être établi.
+      description: Authentification absente ou invalide ; aucun appelant authentifié ne peut être établi.
       content:
         application/problem+json:
           schema:
@@ -575,11 +600,21 @@ components:
       headers:
         WWW-Authenticate:
           description: Challenge Bearer ; détails à préciser avec le fournisseur OAuth.
+          required: true
           schema:
             type: string
           example: Bearer
+    Forbidden:
+      description: Appelant authentifié dont le rôle ou les scopes ne permettent pas cette opération (BFLA), par exemple un jeton de montre ou de patient sur une opération réservée aux soignants. Ce code ne traduit jamais l’appartenance d’un objet, car un objet hors du périmètre de l’appelant renvoie 404.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/Forbidden'
     PatientNotFound:
-      description: Le patient demandé est introuvable.
+      description: Patient inexistant ou hors du périmètre autorisé de l’appelant (BOLA), notamment s’il n’est pas suivi par le soignant ou si le consentement valide exigé est absent ou retiré. Les cas ne sont pas distinguables dans la réponse.
       content:
         application/problem+json:
           schema:
@@ -588,7 +623,7 @@ components:
             erreur:
               $ref: '#/components/examples/NotFound'
     AlertNotFound:
-      description: L’alerte demandée est introuvable.
+      description: Alerte inexistante ou hors du périmètre autorisé de l’appelant (BOLA), notamment si elle concerne un patient non suivi par le soignant ou si le consentement valide exigé est absent ou retiré. Les cas ne sont pas distinguables dans la réponse.
       content:
         application/problem+json:
           schema:
@@ -596,6 +631,45 @@ components:
           examples:
             erreur:
               $ref: '#/components/examples/NotFound'
+    NotModified:
+      description: Le seuil n’a pas changé depuis l’ETag fourni dans If-None-Match ; aucun corps n’est renvoyé. L’ETag est répété dans la réponse.
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
+    ThresholdNotFound:
+      description: Patient ou seuil inexistant, ou hors du périmètre autorisé de l’appelant (BOLA), à savoir patient non suivi par le soignant, seuil rattaché à un autre patient que celui du chemin, ou consentement valide exigé absent ou retiré. Les cas ne sont pas distinguables dans la réponse.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/NotFound'
+    PreconditionFailed:
+      description: If-Match ne correspond pas à l’ETag courant du seuil, car il a été modifié depuis sa lecture. Le client relit le seuil (GET) avant de réessayer. Évaluée après 401, 403, 404 et 428.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/PreconditionFailed'
+    PreconditionRequired:
+      description: L’en-tête If-Match est absent alors que la modification du seuil l’exige. Évaluée après 401, 403 et 404, avant 412.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/PreconditionRequired'
+  headers:
+    ETag:
+      description: Validateur fort de la représentation du seuil, calculé par le backend à partir de sa représentation complète. Valeur opaque entre guillemets, à renvoyer telle quelle dans If-Match ou If-None-Match ; le client ne doit pas l’interpréter.
+      required: true
+      schema:
+        type: string
+      example: '"4b1f0c9e7a3d2e58"'
   examples:
     BadRequest:
       summary: Réponse d’erreur illustrative
@@ -632,12 +706,26 @@ components:
         title: Conflit métier
         status: 409
         detail: Conflit métier. Exemple fictif sans donnée de santé.
+    PreconditionFailed:
+      summary: Réponse d’erreur illustrative
+      value:
+        type: about:blank
+        title: Précondition non satisfaite
+        status: 412
+        detail: Le seuil a été modifié depuis sa lecture. Exemple fictif sans donnée de santé.
+    PreconditionRequired:
+      summary: Réponse d’erreur illustrative
+      value:
+        type: about:blank
+        title: Précondition requise
+        status: 428
+        detail: L’en-tête If-Match est obligatoire. Exemple fictif sans donnée de santé.
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
-      description: Jeton d’accès JWT obtenu avec OAuth 2.0. Fournisseur, flux, noms des scopes distincts montre/patient/soignant et lien avec les entités métier restent à valider. Aucun flux OAuth ni scope fictif n’est déclaré. Prism ne vérifie pas les signatures JWT ou les droits métier.
+      description: Jeton d’accès JWT obtenu avec OAuth 2.0. Trois types de clients ont des scopes distincts, indiqués par opération dans `security` (rôles du schéma Bearer, au sens d’OpenAPI 3.1) ; `montre` (simulateur, envoi des mesures), `patient` (consentements du patient connecté) et `soignant` (patients, mesures, alertes et seuils). 401 si le jeton est absent ou invalide ; 403 si son scope ne couvre pas l’opération (BFLA) ; 404 si l’objet est inexistant ou hors du périmètre de l’appelant (BOLA). Un scope donne le droit d’appeler l’opération, pas l’accès à un patient précis. Les noms des scopes sont provisoires ; leur granularité, le fournisseur, le flux OAuth et le lien avec les entités métier restent à valider. Aucun flux OAuth n’est déclaré. Prism ne vérifie ni les signatures JWT, ni les scopes, ni les droits métier.
   parameters:
     patientId:
       name: patientId
@@ -671,6 +759,22 @@ components:
       schema:
         $ref: '#/components/schemas/Identifier'
       example: '3'
+    ifMatch:
+      name: If-Match
+      in: header
+      required: false
+      description: ETag du seuil lu précédemment. Exigé par le backend ; son absence donne 428 et une valeur qui ne correspond plus à l’état courant donne 412. Déclaré facultatif ici pour que 428 reste atteignable, sinon un outil de validation rejetterait la requête avant le backend.
+      schema:
+        type: string
+      example: '"4b1f0c9e7a3d2e58"'
+    ifNoneMatch:
+      name: If-None-Match
+      in: header
+      required: false
+      description: ETag déjà détenu par le client. S’il correspond à l’état courant, la réponse est 304 sans corps (comparaison faible, RFC 9110).
+      schema:
+        type: string
+      example: '"4b1f0c9e7a3d2e58"'
     startDate:
       name: startDate
       in: query
@@ -762,14 +866,64 @@ components:
       description: Lot de mesures fictives associé à un patient. Enregistrement atomique ; tout batchId déjà reçu est refusé, contenu identique ou différent.
     Patient:
       description: 'Informations du patient : identifiant, nom, prénom et date de naissance. Structure JSON à définir.'
+    MeasurementType:
+      type: string
+      enum:
+        - FREQUENCE_CARDIAQUE
+        - SPO2
+        - PAS
+      description: Type commun aux seuils et aux alertes. Correspond respectivement aux champs frequenceCardiaque, spo2 et pas des relevés ; pas compte les pas depuis le relevé précédent.
     Threshold:
-      description: Identifiant, type de mesure, valeurs minimale et maximale et état actif du seuil. Structure JSON à définir.
+      type: object
+      properties:
+        seuilId:
+          $ref: '#/components/schemas/Identifier'
+        patientId:
+          $ref: '#/components/schemas/Identifier'
+        typeMesure:
+          $ref: '#/components/schemas/MeasurementType'
+        valeurMin:
+          type: number
+        valeurMax:
+          type: number
+        actif:
+          type: boolean
+          description: Le backend active automatiquement le seuil à sa création.
+      required:
+        - seuilId
+        - patientId
+        - typeMesure
+        - valeurMin
+        - valeurMax
+        - actif
+      description: Seuil du patient. Le backend garantit valeurMin <= valeurMax et un seul seuil actif par patient et type de mesure. Les types et formats des identifiants restent ouverts.
     ThresholdCreate:
       type: object
-      description: Le type de mesure et les valeurs minimale et maximale sont nécessaires métier. Leurs noms JSON et validations ne sont pas arrêtés ; aucun nom de champ issu du MCD n’est imposé au corps JSON.
+      additionalProperties: false
+      properties:
+        typeMesure:
+          $ref: '#/components/schemas/MeasurementType'
+        valeurMin:
+          type: number
+        valeurMax:
+          type: number
+      required:
+        - typeMesure
+        - valeurMin
+        - valeurMax
+      description: Les trois propriétés sont obligatoires et non nulles ; les propriétés inconnues sont refusées. Le patient vient du chemin et actif est fixé à true par le backend. Le backend vérifie valeurMin <= valeurMax, égalité autorisée ; cette comparaison entre propriétés n’est pas exprimable par les contraintes JSON Schema standard utilisées ici.
     ThresholdPatch:
       type: object
-      description: Valeurs minimale, maximale et état actif sont facultatifs ; seuls les champs à modifier sont transmis. Noms JSON et comportement du corps vide restent à définir.
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        valeurMin:
+          type: number
+        valeurMax:
+          type: number
+        actif:
+          type: boolean
+      description: Au moins une propriété est requise ; chacune est facultative individuellement. Corps vide, valeurs nulles et propriétés inconnues sont refusés. Le type de mesure et le patient ne sont pas modifiables. Après fusion avec les valeurs conservées, le backend vérifie valeurMin <= valeurMax ; cette comparaison n’est pas validée par le schéma.
     AlertStatus:
       type: string
       enum:
@@ -787,8 +941,7 @@ components:
         prenomPatient:
           type: string
         typeMesure:
-          type: string
-          description: Type de mesure concerné ; les valeurs autorisées restent à définir.
+          $ref: '#/components/schemas/MeasurementType'
         horodatage:
           type: string
           format: date-time
@@ -812,8 +965,7 @@ components:
         patientId:
           $ref: '#/components/schemas/Identifier'
         typeMesure:
-          type: string
-          description: Type de mesure concerné ; les valeurs autorisées restent à définir.
+          $ref: '#/components/schemas/MeasurementType'
         valeurMesuree:
           type: number
           description: Valeur de la mesure ayant déclenché l’alerte.
@@ -878,13 +1030,15 @@ components:
     ConsentList:
       description: 'Consentements du patient connecté : identifiant, soignant, dates et état. Format de liste, valeurs de l’état, présence et nullabilité de la date de fin à définir.'
     ThresholdList:
-      description: Seuils du patient avec leurs valeurs et leur état. Format de liste et noms JSON à définir.
+      description: Liste de seuils du patient dont chaque élément est décrit par Threshold. L’enveloppe JSON reste à définir ; ce schéma ne contraint pas encore la structure de la liste.
 x-pending-decisions:
   - 'Formats JSON non encore définis, types des identifiants et enveloppes des listes : non contraints tant que non validés.'
   - Formats des dates non encore définis, unités et bornes numériques des mesures, validations complémentaires, ordre de tri, bornes de période et corps de réponses définitifs.
-  - Identification du simulateur et autorisation pour le patient indiqué par patientId, fournisseur et flux OAuth, noms des scopes.
-  - Périmètre du consentement pour listes de patients/alertes, informations patient, seuils et acquittement.
+  - Identification du simulateur et rattachement montre-patient pour patientId, fournisseur et flux OAuth, noms définitifs et granularité des scopes montre/patient/soignant (noms provisoires).
+  - 'Périmètre du consentement pour listes de patients/alertes, informations patient, seuils et acquittement. Principe retenu : s’il est exigé, son absence ou son retrait place l’objet hors du périmètre (404 en accès direct, exclusion dans les collections).'
+  - 'Seuils — ETag fort calculé sans colonne de version : algorithme exact, sérialisation canonique et gestion de If-Match: * à valider. ETag sur la collection des seuils non retenu.'
+  - 'Sécurité — flux OAuth (authorizationCode avec PKCE, clientCredentials), URLs du fournisseur et déclaration de schéma oauth2 : non figés, voir docs/outillage-tp3.md.'
   - Corps JSON de confirmation du lot et URI canonique dans Location ; pas de nouvelle route inventée.
   - 'Propositions à confirmer pour les alertes : valeurSeuil est la borne minimale ou maximale réellement franchie ; horodatage est la date de création de l’alerte.'
-  - Valeurs autorisées de typeMesure, enveloppe paginée des alertes, acquittement individuel, destinataires des notifications.
+  - Enveloppe paginée des alertes, acquittement individuel, destinataires des notifications.
   - Ordre et garanties entre persistance, évaluation des seuils et alertes ; intégration PostgreSQL.

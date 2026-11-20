@@ -140,7 +140,7 @@ Aucune justification supplémentaire n’a été documentée pour le regroupemen
 
 ```mermaid
 flowchart TD
-    %% Veillo : modèle de ressources REST, établi à partir des 12 endpoints de docs/api.md
+    %% Veillo : modèle de ressources REST, établi à partir des 13 endpoints de docs/api.md
     %% Trait plein : hiérarchie d'URI (sous-ressource réellement définie)
     %% Pointillés : référence métier ou information associée retournée par l'API
 
@@ -202,6 +202,13 @@ Trois notions se complètent :
 
 Le backend devra vérifier la signature et la validité des JWT, leurs informations d’autorisation et les droits sur les ressources. Il contrôlera le consentement à chaque accès concerné.
 
+Codes d’accès retenus, selon les exigences du formateur :
+
+- `401` : authentification absente ou invalide.
+- `403` : appelant authentifié dont le rôle ou le scope est insuffisant (BFLA). Les clients montre, patient et soignant ont des scopes distincts.
+- `404` : objet inexistant ou hors du périmètre autorisé (BOLA), en lecture comme en écriture. Un soignant n’accède qu’à ses patients (`SUIVRE`) et un patient qu’à ses consentements.
+- Les collections ne retournent que les objets accessibles, quels que soient les filtres.
+
 Les réponses seront limitées aux données nécessaires. Aucune donnée de santé sensible ne devra figurer dans les logs, y compris dans les messages d’erreur.
 
 Pour le client mobile, **Authorization Code avec PKCE est une option recommandée à étudier**, pas un flux déjà validé. Le fournisseur OAuth, les flux exacts, les noms des scopes et la correspondance entre identités OAuth et entités métier restent à préciser.
@@ -224,10 +231,11 @@ La comparaison des contrats fait apparaître les situations suivantes :
 - **Consentements du patient connecté :** `GET /patients/me/consents` repose sur son authentification pour retrouver ses propres consentements, sans contrôle d’un consentement accordé à un soignant.
 - **Actions du soignant :** le consentement n’est pas explicité pour `PATCH /alerts/{alertId}` ni pour la création et la modification des seuils. Son application à ces actions reste à décider.
 
-Ces différences ne signifient pas que les accès sans consentement sont autorisés. Leur périmètre doit être validé selon les données et l’action concernées, sans imposer automatiquement une règle uniforme.
+Là où le consentement est exigé, son absence ou son retrait place l’objet hors du périmètre : `404` en accès direct, exclusion dans les collections. Ces différences ne signifient pas que les accès sans consentement sont autorisés. Leur périmètre doit être validé selon les données et l’action concernées, sans imposer automatiquement une règle uniforme.
 
 ### Seuils
 
+- **Requêtes conditionnelles retenues :** `GET` individuel du seuil avec `ETag`, `If-Match` obligatoire sur le `PATCH` (`412`, `428`) et `If-None-Match` avec `304`. L’`ETag` est un validateur fort calculé depuis la représentation, sans colonne de version. Le futur backend écrira dans une transaction avec `SELECT … FOR UPDATE`, et un index unique partiel garantira un seul seuil actif par patient et type. Rien de cela n’est implémenté ; détails dans le [guide des seuils](contrats/seuils.md#requêtes-conditionnelles-etag).
 - Confirmer si un dépassement correspond à une valeur hors de l’intervalle `valeur_min`–`valeur_max`.
 - Préciser les modalités d’application de `actif` lors de l’évaluation des mesures. L’unicité du seuil actif est retenue ; la possibilité de conserver plusieurs seuils inactifs pour un même patient et un même type reste à préciser.
 
