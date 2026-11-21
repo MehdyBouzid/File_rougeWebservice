@@ -1,6 +1,6 @@
 # Docker — Commandes de développement Veillo
 
-Toutes les commandes se lancent depuis la racine du dépôt, avec Docker Desktop démarré ; chacun utilise son propre `.env` et sa propre base locale.
+Commandes à lancer depuis la racine, avec Docker Desktop démarré. Chaque développeur conserve son `.env` et sa base locale. Configuration : [compose.yaml](../compose.yaml), [outillage migrations](../compose.migrations.yaml) et [.env.example](../.env.example).
 
 ## 1. Démarrer ou reconstruire
 
@@ -10,7 +10,7 @@ Créer le `.env` uniquement s’il n’existe pas, puis y renseigner `DB_PASSWOR
 [ -f .env ] || cp .env.example .env
 ```
 
-Construire les images et démarrer `backend` et `postgres`, au premier lancement ou après une modification du code, des dépendances ou du Dockerfile.
+Construire et démarrer `backend` et `postgres`, au premier lancement ou après un changement de code, de dépendances ou du Dockerfile.
 
 ```bash
 docker compose up -d --build
@@ -42,7 +42,7 @@ Afficher l’état et les ports des conteneurs, y compris ceux arrêtés, et vé
 docker compose ps -a
 ```
 
-Afficher les derniers journaux puis les suivre en continu, avec `Ctrl+C` pour quitter sans arrêter les services.
+Suivre les 30 dernières lignes de logs ; `Ctrl+C` quitte sans arrêter les services.
 
 ```bash
 docker compose logs --tail=30 -f backend postgres
@@ -72,7 +72,7 @@ docker compose exec postgres sh -c 'exec psql -X -U "$POSTGRES_USER" -d "$POSTGR
 
 ## Migrations TypeORM
 
-Les fichiers sont dans `backend/src/persistence/migrations/` ; **les six squelettes actuels doivent être complétés avant toute application**, car leurs méthodes lèvent volontairement une erreur.
+Les fichiers sont dans [backend/src/persistence/migrations/](../backend/src/persistence/migrations/). **Les six squelettes lèvent une erreur : les compléter et les relire avant toute application.**
 
 Créer un squelette horodaté en remplaçant `DescriptionEvolution` par un nom explicite en PascalCase.
 
@@ -108,7 +108,12 @@ docker compose exec backend npm run migration:run
 
 **Avant application :** reconstruire avec la commande de la section 1 pour inclure les migrations compilées ; un statut vide dans une ancienne image ne signifie pas que les sources sont vides.
 
-**À deux :** récupérer les dernières migrations, vérifier leur ordre et leurs dépendances avant fusion, ne jamais modifier une migration appliquée ou partagée et ne lancer qu’une application à la fois sur une base commune ; les timestamps ne garantissent pas l’absence de conflit SQL.
+**Travail à deux :**
+
+- Récupérer les dernières migrations avant d’en créer une.
+- Vérifier noms, timestamps, ordre, dépendances et SQL avant fusion : un timestamp unique n’empêche pas un conflit de schéma.
+- Corriger une migration partagée ou appliquée par une nouvelle migration.
+- N’appliquer qu’une série à la fois sur une base commune.
 
 `synchronize: false` et `migrationsRun: false` restent configurés : démarrer le backend n’applique aucune migration, et aucun conflit ne doit être résolu en supprimant ou réinitialisant une base.
 

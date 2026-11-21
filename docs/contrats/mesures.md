@@ -1,6 +1,6 @@
 # Contrats API — Mesures
 
-Les mesures fictives alimentent le suivi des patients et l’évaluation des seuils. Ce guide décrit les envois du simulateur d’Egor (une montre) et la consultation par le soignant. Il décrit le contrat attendu, pas des fonctionnalités déjà opérationnelles.
+Le simulateur d’Egor envoie des mesures fictives ; le soignant les consulte pour suivre ses patients. Ce guide décrit les échanges et règles attendus, encore à implémenter.
 
 Sources : [schémas JSON](../../openapi/components/schemas.yaml) et [opérations sur les mesures](../../openapi/paths/measurements.yaml).
 
@@ -52,7 +52,7 @@ Les identifiants de l’exemple n’imposent ni préfixe ni UUID.
 
 ## 3. Authentification et autorisation
 
-OAuth 2.0 avec JWT est retenu, avec des scopes distincts pour montres, patients et soignants (noms provisoires : `montre`, `patient`, `soignant`). Cette opération exige le scope montre (`403` sinon). Le backend vérifie aussi que le `patientId` existe et est rattaché à l’émetteur (`404` sinon) : cet identifiant seul n’autorise pas l’envoi.
+L’ingestion exige le scope montre (`403` sinon) et un patient existant, autorisé pour l’émetteur (`404` sinon). `patientId` seul ne donne aucun droit. OAuth 2.0/JWT et les trois scopes distincts sont retenus ; leurs noms (`montre`, `patient`, `soignant`) sont provisoires.
 
 ## 4. Réponses HTTP prévues
 
@@ -63,7 +63,7 @@ OAuth 2.0 avec JWT est retenu, avec des scopes distincts pour montres, patients 
 - `404` : patient inexistant ou non rattaché à l’émetteur authentifié.
 - `409` : `batchId` déjà enregistré.
 
-Les erreurs utilisent `application/problem+json` ; voir la [revue des réponses HTTP](../api-review.md).
+Les erreurs utilisent `application/problem+json` ; voir la [revue HTTP](../api-review.md#post-measurements).
 
 ## 5. Consulter les mesures d’un patient
 

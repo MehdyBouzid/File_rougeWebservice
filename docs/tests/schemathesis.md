@@ -1,12 +1,12 @@
 # Schemathesis — Guide de travail pour Elamine
 
-Objectif : mettre en place Schemathesis (TP5) **sans attendre que le backend soit terminé**. Ce guide prépare ton travail ; il ne contient pas les tests à ta place et ne modifie aucun contrat.
+Ce guide prépare les tests du TP5 : commencer sur Prism, puis tester les routes NestJS au fil de leur développement.
 
-Les commandes ont été essayées avec Schemathesis 4.33.4 (Docker) contre le mock Prism. Ce qui n'est pas essayé est signalé.
+Les essais rapportés ont utilisé Schemathesis 4.33.4 dans Docker. Ils sont historiques ; les commandes et l’exemple de CI non exécutés sont signalés.
 
-## C'est quoi, et pourquoi ?
+## Rôle de Schemathesis
 
-Schemathesis lit notre contrat OpenAPI, **invente lui-même des centaines de requêtes** (valides et invalides) et vérifie que l'API répond comme le contrat le promet : bons statuts, bons en-têtes, bon JSON.
+Schemathesis génère des requêtes à partir d’OpenAPI et compare les réponses au contrat : statuts, en-têtes et JSON. Il complète les cas écrits à la main dans Bruno.
 
 ```text
 openapi.bundle.yaml ──► Schemathesis ──► requêtes générées ──► Prism (mock) ou backend NestJS
@@ -14,18 +14,20 @@ openapi.bundle.yaml ──► Schemathesis ──► requêtes générées ─�
                               └──── compare la réponse au contrat ◄────┘
 ```
 
-Bruno rejoue les cas qu'on a écrits à la main ; Schemathesis trouve ceux auxquels on n'a pas pensé. À terme, il sert aussi à vérifier nos règles d'accès (401, 403, 404).
+Les contrôles d’accès (401, 403, 404) nécessiteront le vrai backend : Prism ne vérifie ni les JWT ni les règles métier.
 
 ## Ce qui existe déjà
 
-- Le contrat est validé (Spectral, Redocly), simulé (Prism) et testé à la main (Bruno) : voir [outillage-tp3.md](../outillage-tp3.md).
+- Le contrat et les outils sont décrits dans [outillage-tp3.md](../outillage-tp3.md). Les résultats et limites des essais Prism/Bruno figurent dans [mock-prism.md](../mock-prism.md#résultats-et-preuves).
 - Le backend a des tests Jest, mais ses controllers sont encore vides et le JWT n'est pas implémenté.
-- Il n'y a **pas** encore de GitHub Actions ni de Schemathesis.
+- Aucun workflow GitHub Actions ni suite Schemathesis n’est versionné ; les essais ci-dessous utilisent l’image Docker.
 - Les consignes officielles du TP5 ne sont pas dans le dépôt : les critères en bas du guide sont à comparer avec le PDF du formateur.
 
 ## Le fichier à utiliser
 
-[openapi/openapi.bundle.yaml](../../openapi/openapi.bundle.yaml) : le contrat en un seul fichier. Ne le modifie pas à la main. Si un défaut du contrat te gêne, note-le et préviens l'équipe : tu ne corriges pas les contrats.
+Utilise [openapi.bundle.yaml](../../openapi/openapi.bundle.yaml), le contrat regroupé. Régénère-le depuis les sources avant les essais : voir [les commandes de validation](../outillage-tp3.md#1-génération-du-bundle-et-validation-spectral).
+
+Ne le modifie pas manuellement. Signale à l’équipe les défauts du contrat avant toute correction des sources.
 
 ## Installation
 
@@ -35,7 +37,7 @@ Rien à installer, on passe par Docker. Vérifie juste :
 docker run --rm schemathesis/schemathesis:stable --version
 ```
 
-Tu dois voir `schemathesis, version 4.x`. Sur Docker Desktop (Mac, Windows), un conteneur atteint ton ordinateur avec `host.docker.internal`.
+Vérifie la version affichée : le tag `stable` peut évoluer depuis les essais en 4.33.4. Sur Docker Desktop (Mac, Windows), utilise `host.docker.internal` pour joindre l’hôte.
 
 ## Premier essai avec Prism (sans backend)
 
@@ -56,26 +58,27 @@ docker run --rm -v "$PWD/openapi:/openapi:ro" schemathesis/schemathesis:stable r
   --exclude-checks ignored_auth,unsupported_method,allow_header_conformance
 ```
 
-En clair :
+Options utilisées :
+
 - `--url` : l'API à tester.
 - `-H "Authorization: Bearer test"` : un faux jeton, sinon Prism répond 401.
 - `--phases examples,coverage` : joue les exemples du contrat, puis les cas de couverture.
 - `--mode positive` : uniquement des données valides.
 - `--exclude-checks …` : retire trois contrôles que Prism ne peut pas passer (voir plus bas).
 
-Résultat observé : les deux phases passent, code de sortie `0`.
+Résultat historique : les deux phases ont terminé avec le code `0`. Ce résultat ne prouve pas que le backend applique les règles métier.
 
 ## Pourquoi ces exclusions ?
 
-Sans elles, Schemathesis signale des échecs qui viennent de **Prism**, pas de notre contrat :
+Les essais ont révélé ces limites de Prism :
 
 - `ST401` : Prism accepte n'importe quel jeton.
 - `ST204` : Prism répond 405 sans en-tête `Allow` (déjà noté dans [api-review.md](../api-review.md)).
 - `ST105` : pour un JSON mal formé, Prism répond `application/json` au lieu de `application/problem+json`.
 
-Et `--mode positive` : avec des données invalides, Schemathesis a **fait planter Prism** (erreur sur l'en-tête `sl-violations`). Contre le vrai backend, tous ces contrôles redeviennent utiles.
+Le mode positif évite aussi un plantage de Prism observé avec des données invalides (en-tête `sl-violations`). Ces exclusions ne doivent pas masquer des défauts du vrai backend.
 
-**À signaler à l'équipe, sans corriger :** les identifiants du contrat (`patientId`, `seuilId`…) n'ont pas de type défini (décision ouverte). Schemathesis y met des valeurs bizarres, et Prism répond parfois 405 (`ST103`). Pour rejouer exactement un run, ajoute `--seed <nombre>` (affiché en fin de run).
+**[À VALIDER]** Les identifiants (`patientId`, `seuilId`…) n’ont pas de type défini. Certains identifiants générés ont entraîné des réponses Prism 405 (`ST103`). Signale ces cas sans inventer de format d’identifiant ; conserve le `--seed <nombre>` affiché pour les reproduire.
 
 ## Lire un résultat
 
@@ -89,7 +92,7 @@ La fin du run résume les phases, les échecs et la couverture du contrat.
 
 ## Tester une partie seulement
 
-Pendant le développement, vise une route ou un tag (les `operationId` sont dans `openapi/paths/`, les tags sont `Mesures`, `Patients`, `Alertes`, `Consentements`, `Seuils`) :
+Ajoute l’une de ces options à la commande `run`. Les `operationId` se trouvent dans [paths/](../../openapi/paths/) ; les tags sont `Mesures`, `Patients`, `Alertes`, `Consentements` et `Seuils` :
 
 ```bash
 --include-operation-id getPatientThreshold
@@ -98,18 +101,18 @@ Pendant le développement, vise une route ou un tag (les `operationId` sont dans
 
 ## Contre le backend NestJS, étape par étape
 
-Aujourd'hui le backend ne répond pas encore à ces routes : tout lancer donnerait des centaines d'échecs inutiles. Avance route par route, quand l'équipe les implémente.
+Les routes métier ne sont pas encore implémentées. Teste chaque opération lorsqu’elle devient disponible, plutôt que de lancer toute la suite sur le squelette.
 
 1. **Joindre le backend.** `docker compose up -d --build` (voir [docker.md](../docker.md)), port `3000`. Deux pistes, **non testées** : `--url http://host.docker.internal:3000`, ou rejoindre le réseau du projet avec `--network <réseau> --url http://backend:3000` (nom du réseau : `docker network ls`).
 2. **Une route, données valides** : `--include-operation-id listPatients --mode positive --phases examples,coverage`. Commence par les lectures, puis créations et modifications.
-3. **Ajouter les données invalides** : retire `--mode positive`. Schemathesis vérifie alors que l'API refuse en 4xx (le backend renvoie 400 pour un champ inconnu).
-4. **Sécurité, quand le JWT existera** : retire `ignored_auth` des exclusions (il envoie un faux jeton et attend 401 ou 403). Le contrôle `object_level_authorization` existe aussi et colle à notre règle 404.
+3. **Ajouter les données invalides** : retire `--mode positive`. Vérifie les 4xx prévus par le contrat, notamment le 400 pour les propriétés inconnues des requêtes de seuils.
+4. **Sécurité, quand le JWT existera** : réactive `ignored_auth` et examine `object_level_authorization`. Un contrôle générique acceptant 401 ou 403 ne suffit pas : vérifie aussi notre distinction [401 / 403 / 404](../api-review.md), avec des identités et objets de test adaptés.
 5. **Tout lancer** : sans `--phases`, pour avoir exemples, couverture, fuzzing et tests à état.
 6. **Échec accepté par l'équipe** : `--baseline <fichier>` permet de l'enregistrer pour ne pas bloquer. Seulement après décision.
 
 ## GitHub Actions
 
-Pas de workflow existant : crée `.github/workflows/schemathesis.yml`. Base à **tester** (non exécutée ici) :
+Aucun workflow n’existe actuellement. Cet exemple pour un futur `.github/workflows/schemathesis.yml` reste **à tester** ; il ne valide que le mock :
 
 ```yaml
 name: Schemathesis
@@ -139,7 +142,9 @@ jobs:
             --exclude-checks ignored_auth,unsupported_method,allow_header_conformance
 ```
 
-À retenir : `--network host` marche sur un runner Linux (pas sur Docker Desktop) ; un échec Schemathesis donne un code non nul, donc le job échoue ; pour garder un rapport, `--report junit --report-dir <dossier>` existe (à essayer) ; ne commite pas `schemathesis-report/` ni `schema-coverage.html`.
+Cet exemple cible un runner Ubuntu avec `--network host`. Sur le poste Docker Desktop, utilise la commande avec `host.docker.internal` présentée plus haut.
+
+Un code de sortie non nul fait échouer le job. L’export `--report junit --report-dir <dossier>` reste à essayer ; ne versionne pas `schemathesis-report/` ni `schema-coverage.html`.
 
 ## Critères pour valider ton travail
 

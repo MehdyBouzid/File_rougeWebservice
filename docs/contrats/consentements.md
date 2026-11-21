@@ -1,6 +1,6 @@
 # Contrats API — Consentements
 
-Ces opérations sont réservées au patient authentifié (scope patient). Le segment `me` désigne le patient identifié par son jeton : aucun `patientId` n’est transmis dans le chemin. Ce guide décrit le contrat attendu, pas une implémentation.
+Le patient authentifié consulte et retire ses propres consentements, avec le scope patient. `me` désigne l’identité de son jeton ; aucun `patientId` n’est fourni dans l’URL. Ce contrat reste à implémenter.
 
 Sources : [opérations consentements](../../openapi/paths/consents.yaml) et schéma `ConsentList` dans [schemas.yaml](../../openapi/components/schemas.yaml). Les erreurs utilisent `application/problem+json`.
 
@@ -39,7 +39,7 @@ retrait ──► accès futurs du soignant concerné bloqués
         └─► consentement, trace du retrait et historique des données conservés
 ```
 
-Le retrait n’est pas une suppression : le consentement et la trace de son retrait sont conservés, ainsi que l’historique des données.
+Le retrait bloque les accès concernés sans supprimer le consentement ni les données. Il ne définit pas un historique complet des renouvellements et retraits successifs.
 
 - `204` : retrait enregistré, sans corps.
 - `401` : authentification absente ou invalide.
@@ -48,4 +48,10 @@ Le retrait n’est pas une suppression : le consentement et la trace de son retr
 
 ## Points à valider
 
-**[À VALIDER]** Comportement d’un retrait déjà effectué (aucun code supplémentaire retenu), types d’identifiants, JSON de consultation et lien entre l’identité OAuth et le patient, selon la [définition de sécurité](../../openapi/components/security.yaml).
+**[À VALIDER]**
+
+- Réponse à un retrait déjà effectué : aucun code supplémentaire retenu.
+- Types d’identifiants, JSON de consultation, état et conditions de validité des dates.
+- Lien entre identité OAuth et patient : voir la [sécurité](../../openapi/components/security.yaml).
+
+Le MCD relie chaque consentement à un patient et un soignant ; les dates et les renouvellements restent à préciser dans la [conception](../design.md#consentements).

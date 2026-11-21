@@ -1,6 +1,6 @@
 # Contrats API — Patients
 
-Ces deux opérations sont réservées au soignant (scope soignant) et ne portent que sur **les patients qu’il suit**. Un patient non suivi est traité comme un patient inexistant. Ce guide décrit le contrat attendu, pas une implémentation.
+Le soignant consulte uniquement **les patients qu’il suit**, avec le scope soignant. Un patient non suivi est traité comme inexistant. Ce contrat reste à implémenter.
 
 Sources : [opérations patients](../../openapi/paths/patients.yaml) et schémas `Patient` et `PatientPage` dans [schemas.yaml](../../openapi/components/schemas.yaml). Les succès utilisent `application/json` et les erreurs `application/problem+json`.
 
@@ -35,7 +35,7 @@ GET /patients/patient-001 HTTP/1.1
 Authorization: Bearer <jeton>
 ```
 
-Les noms et types des propriétés JSON ne sont pas encore définis ; aucun exemple de réponse n’est fourni.
+Les noms et types JSON restent à définir ; aucun exemple n’est imposé.
 
 - `200` : informations récupérées.
 - `401` : authentification absente ou invalide.
@@ -44,4 +44,10 @@ Les noms et types des propriétés JSON ne sont pas encore définis ; aucun exem
 
 ## Points à valider
 
-**[À VALIDER]** Contrôle du consentement pour les deux consultations (s’il est retenu, son absence renvoie `404`), formats des identifiants et des réponses JSON, modalités OAuth/JWT décrites dans la [définition de sécurité](../../openapi/components/security.yaml).
+**[À VALIDER]**
+
+- Contrôle du consentement pour les deux lectures : le contrat le laisse ouvert ; s’il est retenu, son absence donne `404` ou exclut le patient de la liste.
+- Types d’identifiants et réponses JSON.
+- Modalités [OAuth/JWT](../../openapi/components/security.yaml).
+
+Le contrôle du consentement reste à harmoniser avec l’exigence du sujet : voir le [point à arbitrer](../design.md#périmètre-du-contrôle-du-consentement).

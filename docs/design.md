@@ -2,26 +2,24 @@
 
 ## 1. Présentation de l’architecture
 
-Veillo est le projet du Mastère 2 Web Services, sujet 6 : télésuivi de patients à domicile. Les montres sont simulées et toutes les données sont fictives.
+Veillo simule le télésuivi hospitalier de patients à domicile. Les données sont fictives ; le simulateur transmettra les mesures à l’API NestJS/TypeScript, qui les stockera dans PostgreSQL et gérera seuils, alertes et accès autorisés.
 
-Le simulateur transmettra des mesures à l’API REST NestJS/TypeScript. L’API les conservera dans PostgreSQL et prendra en charge les seuils, les alertes, les consentements et les consultations autorisées.
-
-Une application mobile externe consommera l’API. **Aucun frontend n’est à développer par l’équipe.**
-
-Ce document décrit la conception retenue et les questions ouvertes, sans attester de leur réalisation. Le [README](../README.md) présente l’état du projet, les commandes et les vérifications.
+Ce document décrit le modèle et les décisions, pas un backend métier terminé. Le [README](../README.md) présente l’état réel et les commandes. Une application mobile externe pourra appeler l’API ; **aucun frontend n’est à développer par l’équipe.**
 
 ## 2. Responsabilités des composants
 
 - **Simulateur IoT :** simuler des montres connectées, produire des mesures fictives et les transmettre par lots toutes les minutes. Il n’accédera pas directement à la base. Sa technologie et son organisation interne restent à définir.
 - **API REST NestJS/TypeScript :** recevoir et valider les données, appliquer les règles métier et la sécurité, gérer la persistance et exposer les opérations HTTP.
-- **PostgreSQL :** stocker les patients, soignants, mesures, seuils, alertes et consentements. Son mode d’intégration au backend reste à choisir.
+- **PostgreSQL :** conserver patients, soignants, mesures, seuils, alertes et consentements. La connexion TypeORM est configurée ; les entités, tables et traitements métier restent à développer. Voir les [choix techniques](../CHOIX_TECHNIQUES.md).
 - **Application mobile externe :** appeler l’API en tant que client, sans faire partie des composants développés par l’équipe.
 
 ## 3. Échanges prévus
 
 Le simulateur et le client mobile communiqueront avec l’API en **HTTP/JSON**. Le simulateur enverra les lots ; le client mobile utilisera les opérations de consultation et de gestion selon ses droits.
 
-L’API assurera le stockage et la lecture dans PostgreSQL. Cette liaison relève de la persistance, pas du contrat HTTP/JSON.
+`Simulateur → HTTP/JSON → API → PostgreSQL`.
+
+Le client mobile utilise aussi HTTP/JSON. L’accès PostgreSQL reste interne au backend.
 
 La documentation API est répartie entre deux documents :
 
@@ -134,8 +132,6 @@ RECEVOIR, 0N SOIGNANT, 0N ALERTE
 - **Alertes :** chaque alerte est liée à une mesure et à un seuil. Pour garder le modèle simple, aucune date d’envoi ou de lecture n’est conservée. `RECEVOIR` autorise zéro à plusieurs destinataires ; le minimum attendu reste à confirmer.
 - **Consentement :** il relie un patient et un soignant. `date_debut` marque le début de validité ; `date_fin` indique la fin ou le retrait. Le consentement retiré et la trace de son retrait sont conservés, sans supprimer l’historique des données. Cela ne définit pas un historique complet des renouvellements et retraits successifs.
 
-Aucune justification supplémentaire n’a été documentée pour le regroupement des mesures et les seuils individuels.
-
 ## 5. Modèle de ressources REST
 
 ```mermaid
@@ -211,7 +207,7 @@ Codes d’accès retenus, selon les exigences du formateur :
 
 Les réponses seront limitées aux données nécessaires. Aucune donnée de santé sensible ne devra figurer dans les logs, y compris dans les messages d’erreur.
 
-Pour le client mobile, **Authorization Code avec PKCE est une option recommandée à étudier**, pas un flux déjà validé. Le fournisseur OAuth, les flux exacts, les noms des scopes et la correspondance entre identités OAuth et entités métier restent à préciser.
+Pour le mobile, **Authorization Code avec PKCE reste une option recommandée à étudier**. Fournisseur, flux, noms des scopes et lien OAuth–entités métier restent à valider.
 
 ## 8. Décisions restant à clarifier
 
@@ -227,11 +223,13 @@ Les points suivants restent ouverts ; ils ne constituent pas des décisions vali
 La comparaison des contrats fait apparaître les situations suivantes :
 
 - **Contrôle explicite :** `GET /patients/{patientId}/measurements` et `GET /alerts/{alertId}` vérifient le consentement valide, en plus du suivi et des autorisations.
-- **Contrôle non précisé :** `GET /patients`, `GET /patients/{patientId}`, `GET /alerts` et `GET /patients/{patientId}/seuils` ne mentionnent pas de vérification du consentement. Il reste à décider si les informations retournées nécessitent ce contrôle et comment le retrait affecte ces accès.
+- **Contrôle non précisé :** les listes et détails des patients, la liste des alertes et les deux GET des seuils laissent encore ce contrôle ouvert.
 - **Consentements du patient connecté :** `GET /patients/me/consents` repose sur son authentification pour retrouver ses propres consentements, sans contrôle d’un consentement accordé à un soignant.
 - **Actions du soignant :** le consentement n’est pas explicité pour `PATCH /alerts/{alertId}` ni pour la création et la modification des seuils. Son application à ces actions reste à décider.
 
-Là où le consentement est exigé, son absence ou son retrait place l’objet hors du périmètre : `404` en accès direct, exclusion dans les collections. Ces différences ne signifient pas que les accès sans consentement sont autorisés. Leur périmètre doit être validé selon les données et l’action concernées, sans imposer automatiquement une règle uniforme.
+Là où il est exigé : absence ou retrait → `404` en accès direct, exclusion d’une collection.
+
+**Écart à arbitrer :** le sujet exige le consentement à chaque accès concerné, mais plusieurs contrats le laissent conditionnel. Le PATCH d’alerte retourne notamment le même détail que le GET protégé. Ces passages ne constituent pas une autorisation d’accès sans consentement ; les contrats restent à harmoniser, sans modifier leurs droits ici.
 
 ### Seuils
 
@@ -252,4 +250,5 @@ Les contrats documentés sont regroupés dans [api.md](api.md) (endpoints, lots 
 
 - L’identification du patient et de l’émetteur d’un lot, ainsi que les modalités de sécurité laissées ouvertes en section 7. Le MCD ne contient pas d’entité dédiée aux comptes.
 - L’ordre et les garanties entre stockage des mesures, évaluation des seuils et création des alertes.
-- Le mode d’intégration de PostgreSQL au backend ; le MCD reste conceptuel.
+- Le passage du MCD conceptuel aux entités, relations et migrations métier PostgreSQL ; la connexion technique existe déjà.
+- Le webhook signé prévu par le sujet : contrat, destinataire et articulation avec le push restent à définir. Aucune livraison n’est implémentée.
