@@ -146,7 +146,9 @@ Les livrables du TP2 sont :
 - **Réponses HTTP** : [docs/api-review.md](docs/api-review.md)
 - **Architecture et MCD source** : [docs/design.md](docs/design.md)
 - **Diagramme REST** : [Voir le diagramme REST de Veillo](docs/design.md#5-modèle-de-ressources-rest)
-- **MCD — Conception de la base de données** : [Voir le MCD de Veillo](docs/images/mcd-veillo.png)
+- **MCD — Conception de la base de données** : [Voir le MCD de Veillo](docs/images/Modele%20Conceptuel%20de%20Donn%C3%A9e%20MCD-veillo.png)
+- **MLD — Modèle logique des données** : [Voir le MLD de Veillo](docs/images/Sch%C3%A9ma%20relationnel%20MLD%20%E2%80%94%20Veillo.png)
+- **MPD — Modèle physique des données** : [Voir le MPD de Veillo](docs/images/Sch%C3%A9ma%20MPD%20relationnel%20Veillo.png)
 
 Guides métier : [Mesures](docs/contrats/mesures.md), [Patients](docs/contrats/patients.md), [Alertes](docs/contrats/alertes.md), [Consentements](docs/contrats/consentements.md), [Seuils](docs/contrats/seuils.md) et [Soignant](docs/contrats/soignant.md).
 
