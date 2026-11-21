@@ -1,6 +1,6 @@
 # Soignant — Décision V1
 
-Le soignant est le professionnel qui suit les patients. En V1, il n’a **pas d’endpoint dédié** : il est un appelant authentifié et une entité du modèle.
+Le soignant suit des patients et intervient dans leurs consentements et alertes. En V1, il est une entité métier et un appelant authentifié, **sans endpoint dédié**.
 
 ## Rôle dans le modèle
 
@@ -14,7 +14,7 @@ SOIGNANT ◄─RECEVOIR──► ALERTE         destinataires, sélection à pr�
 
 ## Décision V1
 
-Aucun JSON, schéma OpenAPI ni endpoint REST n’est prévu pour `Soignant`. Les [opérations actuelles](../api.md) suffisent pour accéder aux données des patients suivis, et aucun besoin de consulter des profils de soignants n’est défini. Les échanges peuvent référencer son identifiant sans exposer son profil.
+Les [opérations actuelles](../api.md) couvrent l’accès aux données des patients suivis. Aucun besoin d’afficher les profils Soignant n’est défini : pas de JSON, schéma OpenAPI ou route dédiée. Les échanges peuvent simplement référencer son identifiant.
 
 ## Conséquences pour le backend
 
@@ -24,7 +24,7 @@ Même sans endpoint dédié, le backend devra :
 - vérifier qu’il suit le patient concerné (`404` si le patient est inexistant ou non suivi par le soignant) ;
 - exiger un consentement valide pour consulter les mesures et le détail d’une alerte ; son absence ou son retrait place l’objet hors du périmètre (`404`).
 
-Le contrôle du consentement pour les autres consultations et actions reste à valider, selon la [revue des réponses HTTP](../api-review.md) et la [conception](../design.md#périmètre-du-contrôle-du-consentement). Le lien entre l’identité OAuth et l’entité `SOIGNANT` reste à définir. Rien de cela n’est implémenté.
+Le consentement reste à harmoniser sur les autres opérations : voir la [revue HTTP](../api-review.md) et le [point à arbitrer](../design.md#périmètre-du-contrôle-du-consentement). Le lien OAuth–`SOIGNANT` reste à définir ; la sécurité métier n’est pas implémentée.
 
 ## Évolution possible : afficher le soignant d'un patient
 
@@ -40,11 +40,4 @@ Si l'application mobile doit afficher l'identité du soignant qui suit un patien
 }
 ```
 
-**Pourquoi ces champs ?**
-
-- `id` : identifier le soignant.
-- `nom` et `prenom` : afficher son identité.
-
-Seules les données utiles à cette fonctionnalité sont exposées, conformément au principe de minimisation des données.
-
-Cet exemple illustre une évolution possible, pas une fonctionnalité à développer.
+`id` identifie le soignant ; `nom` et `prenom` affichent son identité. Cet exemple reste une proposition : aucun profil ni nouvelle route n’est à développer sans besoin validé. Limiter alors la réponse aux données utiles.

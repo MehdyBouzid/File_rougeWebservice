@@ -1,14 +1,10 @@
 # Conception de l'API REST — Veillo
 
-Ce document présente les endpoints de l'API Veillo, leur rôle et leur fonctionnement. Les choix sont définis progressivement avec l'équipe.
-
-Les réponses HTTP sont regroupées dans la [revue des réponses HTTP](api-review.md).
-
-L’[organisation du contrat OpenAPI et les commandes de validation](outillage-tp3.md#1-organisation-du-contrat-openapi) sont décrites dans le guide d’outillage du TP3.
+Cette vue d’ensemble décrit les opérations et traitements prévus, encore à implémenter. Pour les codes HTTP, lire la [revue des réponses](api-review.md) ; pour modifier et valider le YAML, suivre le [guide OpenAPI](outillage-tp3.md#1-organisation-du-contrat-openapi).
 
 ## Contrats par domaine
 
-Les guides suivants regroupent les routes, les JSON définis, les réponses prévues et les points ouverts utiles à chaque domaine :
+Les guides métier détaillent les JSON, exemples et décisions ouvertes :
 
 - [Mesures : ingestion IoT et consultation](contrats/mesures.md).
 - [Patients](contrats/patients.md).
@@ -31,8 +27,6 @@ Les guides suivants regroupent les routes, les JSON définis, les réponses pré
 
 ### `POST /measurements`
 
-**Objectif**
-
 Enregistrer les mesures envoyées par les montres connectées pour assurer le suivi des patients.
 
 **Appelant :** Simulateur IoT (scope montre).
@@ -47,7 +41,7 @@ Enregistrer les mesures envoyées par les montres connectées pour assurer le su
   - `spo2` : nombre représentant la saturation en oxygène.
   - `pas` : entier, nombre de pas depuis le relevé précédent, et non un compteur cumulé.
 
-Les trois champs du lot et les quatre champs de chaque relevé sont obligatoires. Le type et le format des identifiants, les unités et les bornes numériques restent à préciser.
+Les trois champs du lot et les quatre champs du relevé sont obligatoires. Types d’identifiants, unités et bornes restent ouverts.
 
 Exemple de lot fictif envoyé par le simulateur toutes les minutes :
 
@@ -66,26 +60,23 @@ Exemple de lot fictif envoyé par le simulateur toutes les minutes :
 }
 ```
 
-Les identifiants de cet exemple n’imposent ni préfixe ni format définitif. Chaque nouveau lot utilise un nouveau `batchId` ; renvoyer un lot déjà enregistré entraîne un conflit.
+Ces identifiants sont illustratifs. Chaque nouveau lot reçoit un nouveau `batchId`.
 
 **Traitement côté API**
 
-1. Identifier l’émetteur authentifié (`401` sinon), vérifier son scope montre (`403` sinon), puis que le `patientId` indiqué existe et lui est rattaché (`404` sinon) ; rattacher toutes les mesures à ce patient. Les modalités d’identification et de rattachement restent à définir.
-2. Vérifier les données reçues. Une seule mesure invalide entraîne le rejet du lot entier.
-3. Vérifier le `batchId`, qui identifie de manière unique le lot :
-   - S’il n’existe pas, poursuivre l’enregistrement du lot.
-   - S’il est déjà enregistré avec un contenu identique, rejeter la requête sans enregistrer de nouvelles mesures.
-   - S’il est déjà enregistré avec un contenu différent, rejeter également la requête sans enregistrer de nouvelles mesures.
-4. Enregistrer le lot et toutes ses mesures dans PostgreSQL, au sein d’une transaction : toutes les mesures sont enregistrées ou aucune ne l’est. La structure de stockage des lots reste à définir.
+1. Authentifier l’émetteur (`401`), vérifier son scope montre (`403`) puis le patient autorisé pour cet émetteur (`404`). Le mécanisme de rattachement reste à définir.
+2. Valider tout le lot : un relevé invalide le fait rejeter entièrement.
+3. Refuser tout `batchId` déjà enregistré (`409`), contenu identique ou différent, sans nouvelle mesure. Sinon poursuivre.
+4. Enregistrer le lot et ses mesures pour ce patient dans une transaction : tout ou rien. Le stockage des lots reste à définir.
 5. Vérifier les seuils applicables.
+
+L’ordre et les garanties techniques entre persistance, seuils et alertes restent ouverts : voir la [conception](design.md#contrats-techniques).
 
 ---
 
 ## 2. Consultation des mesures
 
 ### `GET /patients/{patientId}/measurements`
-
-**Objectif**
 
 Récupérer les mesures d’un patient sur une période donnée pour suivre leur évolution.
 
@@ -101,11 +92,7 @@ Récupérer les mesures d’un patient sur une période donnée pour suivre leur
 
 **Données retournées**
 
-- Horodatage.
-- Fréquence cardiaque.
-- SpO₂.
-- Nombre de pas.
-- Page actuelle, taille de page et nombre total de pages.
+Horodatage, fréquence cardiaque, SpO₂, pas et pagination : page actuelle, taille et total de pages. L’enveloppe JSON reste à définir ; voir le [guide des mesures](contrats/mesures.md#5-consulter-les-mesures-dun-patient).
 
 **Traitement côté API**
 
@@ -120,8 +107,6 @@ Récupérer les mesures d’un patient sur une période donnée pour suivre leur
 
 ### `GET /patients`
 
-**Objectif**
-
 Afficher les patients suivis par le soignant connecté.
 
 **Appelant :** Soignant (scope soignant).
@@ -133,16 +118,12 @@ Afficher les patients suivis par le soignant connecté.
 
 **Données retournées**
 
-- Identifiant du patient.
-- Nom.
-- Prénom.
-- Date de naissance.
-- Informations de pagination.
+Identifiant, nom, prénom, date de naissance et informations de pagination. Le JSON reste à définir dans le [guide Patients](contrats/patients.md).
 
 **Traitement côté API**
 
 1. Identifier le soignant connecté et vérifier son scope (`403` sinon).
-2. Récupérer uniquement les patients qu'il suit via l'association `SUIVRE`, que le consentement soit retenu ou non à ce niveau (à valider).
+2. Limiter la liste aux patients liés par `SUIVRE`. Le contrôle du consentement reste ouvert dans ce contrat, à harmoniser avec l’exigence du sujet.
 3. Appliquer la pagination.
 
 ---
@@ -150,8 +131,6 @@ Afficher les patients suivis par le soignant connecté.
 ## 4. Détail d'un patient
 
 ### `GET /patients/{patientId}`
-
-**Objectif**
 
 Consulter les informations d’un patient suivi.
 
@@ -163,10 +142,7 @@ Consulter les informations d’un patient suivi.
 
 **Données retournées**
 
-- Identifiant du patient.
-- Nom.
-- Prénom.
-- Date de naissance.
+Identifiant, nom, prénom et date de naissance ; JSON à définir.
 
 **Traitement côté API**
 
@@ -179,8 +155,6 @@ Consulter les informations d’un patient suivi.
 ## 5. Consultation des alertes
 
 ### `GET /alerts`
-
-**Objectif**
 
 Afficher les alertes des patients suivis, qu’elles soient actives ou déjà traitées.
 
@@ -197,12 +171,7 @@ Afficher les alertes des patients suivis, qu’elles soient actives ou déjà tr
 
 **Données retournées**
 
-- Identifiant de l'alerte.
-- Identifiant du patient.
-- Nom et prénom du patient.
-- Type de mesure.
-- Date et heure.
-- Statut de l'alerte.
+Identifiants de l’alerte et du patient, nom et prénom du patient, type de mesure, horodatage et statut. Voir `AlertSummary` dans le [guide Alertes](contrats/alertes.md#lister-les-alertes).
 
 **Traitement côté API**
 
@@ -218,8 +187,6 @@ Afficher les alertes des patients suivis, qu’elles soient actives ou déjà tr
 
 ### `GET /alerts/{alertId}`
 
-**Objectif**
-
 Consulter les détails d’une alerte pour identifier le patient concerné et la mesure qui l’a déclenchée.
 
 **Appelant :** Soignant (scope soignant).
@@ -230,13 +197,7 @@ Consulter les détails d’une alerte pour identifier le patient concerné et la
 
 **Données retournées**
 
-- Identifiant de l'alerte.
-- Identifiant du patient.
-- Type de mesure.
-- Valeur mesurée.
-- Valeur du seuil déclenché.
-- Date et heure.
-- Statut de l'alerte.
+Identifiants de l’alerte et du patient, type de mesure, valeur mesurée, valeur du seuil, horodatage et statut. Le [guide Alertes](contrats/alertes.md#lire-une-alerte) décrit `AlertDetail` et les interprétations encore proposées.
 
 **Traitement côté API**
 
@@ -248,15 +209,11 @@ Consulter les détails d’une alerte pour identifier le patient concerné et la
 
 ## Notifications des alertes
 
-**Objectif**
-
 Informer le soignant lorsqu’une nouvelle alerte est créée pour l’un de ses patients.
 
-**Déclenchement**
+**Déclenchement prévu**
 
-1. Le backend détecte un dépassement de seuil.
-2. Il crée une alerte avec le statut `ACTIVE`.
-3. Il déclenche une notification push au soignant concerné.
+`Dépassement → alerte ACTIVE → notification push au soignant concerné`.
 
 **Contenu**
 
@@ -266,15 +223,15 @@ Aucune donnée de santé ne doit apparaître dans la notification (patient, mesu
 
 **Consultation**
 
-Le soignant sélectionne une notification et consulte dans l’application les détails de l’alerte correspondante via `GET /alerts/{alertId}`.
+Le soignant sélectionne la notification puis appelle `GET /alerts/{alertId}`. Le choix des destinataires reste ouvert.
+
+**Point manquant :** le sujet prévoit aussi un webhook signé. Son contrat et son lien avec le push ne sont pas définis ; aucune livraison n’est implémentée.
 
 ---
 
 ## 7. Acquittement d'une alerte
 
 ### `PATCH /alerts/{alertId}`
-
-**Objectif**
 
 Marquer une alerte comme traitée après sa prise en charge par le soignant.
 
@@ -297,18 +254,13 @@ Marquer une alerte comme traitée après sa prise en charge par le soignant.
 
 **Règles métier**
 
-- Une alerte est créée automatiquement avec le statut `ACTIVE`.
-- Le soignant peut la faire passer à `TRAITEE`.
-- Une alerte traitée ne peut pas être réactivée.
-- Les alertes traitées sont conservées dans l'historique.
+`ACTIVE → TRAITEE`, sans réactivation ; les alertes traitées sont conservées. Le PATCH retourne `AlertDetail`, alors que son contrôle du consentement reste ouvert : [écart à arbitrer](design.md#périmètre-du-contrôle-du-consentement).
 
 ---
 
 ## 8. Consultation des consentements
 
 ### `GET /patients/me/consents`
-
-**Objectif**
 
 Consulter les consentements donnés par le patient connecté.
 
@@ -320,11 +272,7 @@ Aucun.
 
 **Données retournées**
 
-- Identifiant du consentement.
-- Identifiant du soignant concerné.
-- Date de début.
-- Date de fin, si renseignée.
-- État du consentement.
+Identifiant du consentement, identifiant du soignant, date de début, date de fin si renseignée et état. Le JSON et les règles de dates restent à définir : voir le [guide Consentements](contrats/consentements.md).
 
 **Traitement côté API**
 
@@ -337,8 +285,6 @@ Aucun.
 ## 9. Retrait du consentement
 
 ### `DELETE /patients/me/consents/{consentId}`
-
-**Objectif**
 
 Retirer un consentement précédemment donné pour mettre fin aux accès concernés.
 
@@ -362,8 +308,6 @@ Le retrait ne supprime ni le consentement ni l’historique des données.
 ## 10. Consultation des seuils
 
 ### `GET /patients/{patientId}/seuils`
-
-**Objectif**
 
 Consulter les seuils configurés pour surveiller les mesures d’un patient.
 
@@ -395,8 +339,6 @@ Chaque élément contient ces six propriétés. L’enveloppe de liste reste à 
 
 ### `GET /patients/{patientId}/seuils/{seuilId}`
 
-**Objectif**
-
 Lire un seuil et obtenir son `ETag`, nécessaire à une modification conditionnelle.
 
 **Appelant :** Soignant (scope soignant).
@@ -422,8 +364,6 @@ Les six propriétés de `Threshold` et l'en-tête `ETag`.
 ## 12. Création d'un seuil
 
 ### `POST /patients/{patientId}/seuils`
-
-**Objectif**
 
 Créer un seuil définissant les limites qui déclenchent des alertes pour les mesures d’un patient.
 
@@ -454,9 +394,7 @@ Les trois propriétés sont obligatoires, non nulles, sans propriété suppléme
 
 ### `PATCH /patients/{patientId}/seuils/{seuilId}`
 
-**Objectif**
-
-Adapter les valeurs d’un seuil ou l’activer ou le désactiver pour ajuster la surveillance du patient.
+Adapter les bornes ou l’état d’un seuil pour ajuster la surveillance.
 
 **Appelant :** Soignant (scope soignant).
 
@@ -486,7 +424,7 @@ Seuls les champs à modifier sont transmis, avec au moins un champ. Les corps vi
    - L'activation est refusée si un autre seuil actif du même type existe déjà.
    - La désactivation conserve le seuil dans l'historique.
 
-La réponse contient la représentation `Threshold` après modification et son nouvel `ETag`, selon le [guide des seuils](contrats/seuils.md). L'ordre des contrôles et le futur mécanisme transactionnel (`FOR UPDATE`, index unique partiel) sont décrits dans ce guide ; ils ne sont pas implémentés.
+La réponse contient `Threshold` et son nouvel `ETag`. Le [guide des seuils](contrats/seuils.md#requêtes-conditionnelles-etag) détaille l’écriture future en transaction (`FOR UPDATE`, index unique partiel) ; rien de cela n’est implémenté.
 
 ---
 

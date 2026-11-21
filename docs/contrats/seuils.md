@@ -1,6 +1,6 @@
 # Contrats API — Seuils
 
-Un seuil fixe les limites (`valeurMin`, `valeurMax`) qui déclenchent une alerte pour un type de mesure d’un patient. Les quatre opérations sont réservées au soignant (scope soignant) pour un patient qu’il suit ; un patient non suivi est traité comme inexistant (`404`). Ce guide décrit le contrat attendu, pas une implémentation.
+Un seuil définit les limites d’un type de mesure pour un patient. Les quatre opérations exigent le scope soignant et le suivi du patient (`404` sinon). Ce contrat reste à implémenter.
 
 Sources : [opérations seuils](../../openapi/paths/seuils.yaml) et [schémas JSON](../../openapi/components/schemas.yaml). Les succès utilisent `application/json` et les erreurs `application/problem+json`. Le détail de `ETag`, `If-Match` et `304` est dans le [guide du cache](cache.md).
 
@@ -71,7 +71,7 @@ ETag: "4b1f0c9e7a3d2e58"
 {"seuilId":"seuil-001","patientId":"patient-001","typeMesure":"FREQUENCE_CARDIAQUE","valeurMin":60,"valeurMax":100,"actif":true}
 ```
 
-Pourquoi ne pas envoyer `seuilId`, `patientId` ni `actif` ? Le backend attribue `seuilId`, le patient vient du chemin, et `actif` vaut toujours `true` à la création. Ces trois champs sont donc interdits dans le corps. Les identifiants de l’exemple sont illustratifs.
+Le backend attribue `seuilId`, prend `patientId` dans l’URL et fixe `actif` à `true`. Ne pas envoyer ces champs dans le corps : ils sont refusés. Les identifiants des exemples ne fixent pas leur format.
 
 - `201` : seuil créé, avec `Location` et `ETag`.
 - `400` : champ obligatoire absent, type invalide, valeur nulle, champ inconnu ou minimum supérieur au maximum.
@@ -105,7 +105,7 @@ Le backend contrôle l’intervalle **final** : avec un maximum à `100`, envoye
 
 ## Requêtes conditionnelles (ETag)
 
-Le formateur exige `ETag`, `If-None-Match`, `If-Match`, `304`, `412` et `428` pour les seuils. Le contrat les déclare sur `GET` et `PATCH` d’un seuil, et l’`ETag` sur le `201` du `POST`. L’explication complète (parcours, exemples, ordre des contrôles) est dans le [guide du cache](cache.md). Ici, seulement ce qui concerne le futur backend.
+Le formateur exige `ETag`, `If-None-Match`, `If-Match`, `304`, `412` et `428` pour les seuils. Le [guide du cache](cache.md) décrit les échanges ; cette section précise l’écriture future en base.
 
 **L’`ETag`.** C’est un validateur fort calculé depuis la représentation complète `Threshold` (les six champs), sans colonne de version ni changement du MCD ou de la BDD. Il change dès que `valeurMin`, `valeurMax` ou `actif` change.
 
@@ -121,7 +121,7 @@ BEGIN
 COMMIT                  → nouvel ETag renvoyé au client
 ```
 
-Une seconde modification concurrente du même seuil attend le verrou, relit la ligne validée par la première et obtient `412`. Le niveau `READ COMMITTED` suffit, car la ligne est relue après l’obtention du verrou.
+Une écriture concurrente attend le verrou puis relit l’état validé : un ETag périmé donne `412`. Le mécanisme prévu utilise `READ COMMITTED` et relit la ligne après obtention du verrou.
 
 Le verrou de ligne ne protège pas l’unicité entre deux seuils différents : deux activations concurrentes du même patient et du même type verrouillent deux lignes distinctes. Cette règle sera garantie par un **index unique partiel** sur le patient et le type de mesure, limité aux seuils actifs (`UNIQUE (patient, type_mesure) WHERE actif`, noms physiques à adapter au schéma). Une violation (`unique_violation`, SQLSTATE `23505`) est traduite en `409`, pour le `POST` comme pour une activation. La migration `CreateThresholds` reste un squelette et n’est pas modifiée.
 
@@ -136,4 +136,4 @@ Le verrou de ligne ne protège pas l’unicité entre deux seuils différents : 
 - Règles de déclenchement aux bornes, non décidées par la validation de l’intervalle.
 - Modalités OAuth/JWT : voir la [définition de sécurité](../../openapi/components/security.yaml).
 
-Prism ne prouve ni la comparaison des bornes, ni la persistance, ni les conflits : ses exemples sont statiques.
+**Écarts à arbitrer :** le consentement reste ouvert malgré l’exigence d’accès du sujet ; l’ordre du `400` de structure est déclaré ouvert ici mais fixe dans OpenAPI. Voir la [revue HTTP](../api-review.md#patch-patientspatientidseuilsseuilid). Prism ne prouve ni les bornes, ni la persistance, ni les conflits.
