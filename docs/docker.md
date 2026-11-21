@@ -56,13 +56,43 @@ Ouvrir un shell dans le backend, avec `exit` pour quitter.
 docker compose exec backend sh
 ```
 
-## 5. PostgreSQL et tables
+## 5. Commandes PostgreSQL utiles
 
-Ouvrir `psql` avec la base et l’utilisateur configurés dans le conteneur, avec `\q` pour quitter.
+### Se connecter
+
+Depuis la racine du projet, avec le service `postgres` démarré, ouvrir `psql` avec la base et l’utilisateur configurés dans le conteneur.
 
 ```bash
 docker compose exec postgres sh -c 'exec psql -X -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
+
+Les commandes ci-dessous se saisissent dans `psql`, pas dans le terminal système. Les commandes commençant par `\` ne nécessitent pas de point-virgule ; les requêtes SQL se terminent par `;`.
+
+### Consulter les tables et leur structure
+
+**Les tables métier doivent d’abord être créées par leurs migrations.** Le démarrage de PostgreSQL ne crée pas `patient`, `seuil` ou `consentement` ; une table absente n’est donc pas forcément une erreur de connexion.
+
+- `\dt` : lister les tables visibles.
+- `\dt+` : afficher aussi leur taille et leur description.
+- `\d` : lister les relations visibles, notamment les tables, vues et séquences.
+- `\d patient` : afficher la structure de Patient (colonnes, types, clés et contraintes).
+- `\d seuil` : afficher la structure de Seuil.
+- `\d consentement` : afficher la structure de Consentement.
+
+### Aide et sortie
+
+- `\?` : afficher l’aide des commandes `psql` ; `?` seul ne suffit pas.
+- `\q` : quitter `psql` sans arrêter PostgreSQL.
+
+### Voir les index, schémas et bases
+
+- `\di` : lister les index visibles.
+- `\di public.*` : lister les index du schéma `public`, dont ceux des tables métier déjà créées.
+- `\dn` : lister les schémas.
+- `\l` : lister les bases de données.
+- `\conninfo` : vérifier la base, l’utilisateur et la connexion en cours.
+
+Les tables métier sont dans le schéma `public` ; pour préciser le schéma, utiliser par exemple `\d public.patient`.
 
 Lister les tables du schéma `public` sans ouvrir de session interactive.
 
@@ -70,9 +100,29 @@ Lister les tables du schéma `public` sans ouvrir de session interactive.
 docker compose exec postgres sh -c 'exec psql -X -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dt public.*"'
 ```
 
+### Consulter l’historique des migrations
+
+Dans `psql`, afficher les migrations enregistrées par TypeORM, dans leur ordre d’application :
+
+```sql
+SELECT id, timestamp, name
+FROM public.veillo_migrations
+ORDER BY id;
+```
+
+Cet historique contient les migrations appliquées, pas celles encore en attente. Ne pas le modifier manuellement ; si la table n’existe pas encore, TypeORM la créera lors de la gestion des migrations.
+
 ## Migrations TypeORM
 
-Les fichiers sont dans [backend/src/persistence/migrations/](../backend/src/persistence/migrations/). **Les six squelettes lèvent une erreur : les compléter et les relire avant toute application.**
+Les fichiers sont dans [backend/src/persistence/migrations/](../backend/src/persistence/migrations/). **Certains squelettes lèvent encore une erreur : les compléter et les relire avant d’appliquer toutes les migrations en attente.**
+
+**Exécuter uniquement la migration Patient (exemple)** depuis la racine, avec PostgreSQL démarré,
+
+```bash
+docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools node -e 'const d=require("./dist/persistence/data-source.js").default;d.setOptions({migrations:["dist/persistence/migrations/1794929035067-CreatePatients.js"]});d.initialize().then(async()=>{try{await d.runMigrations()}finally{await d.destroy()}}).catch(e=>{console.error(e);process.exitCode=1})'
+```
+
+Cette commande conserve la connexion et l’historique `veillo_migrations` configurés : elle applique Patient dans une transaction si cette migration n’est pas déjà enregistrée, sans exécuter les autres migrations ni modifier les fichiers du projet. Elle a été vérifiée par lecture du code, mais n’a pas été exécutée.
 
 Créer un squelette horodaté en remplaçant `DescriptionEvolution` par un nom explicite en PascalCase.
 
