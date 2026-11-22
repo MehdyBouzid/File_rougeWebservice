@@ -2,7 +2,7 @@
 
 ## 1. Objectif
 
-Explorer les échanges HTTP avec curl et des API externes : paramètres, JSON, statuts et négociation de contenu. Ces exercices ne constituent pas une intégration métier de Veillo.
+Exercices du TP1 avec curl et deux API externes : httpbin et HAPI FHIR. Ils explorent HTTP ; ils ne font pas partie de l’API métier Veillo.
 
 ## 2. Requêtes réalisées
 
@@ -10,7 +10,7 @@ Les appels à [httpbin](https://httpbin.org) ont été réalisés avec **curl 8.
 
 ### GET avec paramètre
 
-`GET /get?patient=42` sur httpbin a renvoyé **200 OK**. La réponse contient `args.patient` égal à `"42"`, ce qui permet de vérifier la transmission du paramètre dans l’URL.
+`GET /get?patient=42` sur httpbin a renvoyé **200 OK**. `args.patient` vaut `"42"` : le serveur a reçu le paramètre de l’URL.
 
 ### POST avec JSON
 
@@ -18,7 +18,7 @@ Les appels à [httpbin](https://httpbin.org) ont été réalisés avec **curl 8.
 
 ### Réponse 404
 
-`GET /status/404` sur httpbin a renvoyé **404 Not Found**, avec un corps vide. Cette route produit volontairement le statut demandé : la requête a atteint le serveur, il ne s’agit pas d’une erreur réseau.
+`GET /status/404` sur httpbin a renvoyé **404 Not Found**, avec un corps vide. La route simule volontairement ce statut ; le serveur a bien reçu la requête.
 
 ### Négociation de contenu
 
@@ -49,7 +49,7 @@ FHIR est un standard d’échange de données de santé. Cet exercice est distin
 
 ### Avec curl
 
-Prérequis : curl et une connexion Internet. Le backend Veillo n’a pas besoin d’être démarré. L’option `-i` affiche les en-têtes avant le corps.
+Il faut curl et Internet, sans démarrer Veillo. `-i` affiche les en-têtes avant le corps.
 
 ```bash
 curl -i 'https://httpbin.org/get?patient=42'
@@ -69,8 +69,8 @@ Le dernier appel renvoie un corps PNG binaire. Pour consulter uniquement les en-
 ### Avec Bruno
 
 1. Ouvrir Bruno et choisir « Open Collection ».
-2. Sélectionner [bruno/](../bruno/), qui contient `bruno.json`.
-3. Exécuter une requête avec « Send » ou la collection avec « Run Collection ».
+2. Sélectionner [bruno/](../bruno/), qui contient [bruno.json](../bruno/bruno.json), puis lancer les cinq requêtes TP1 à la racine de la collection. Le sous-dossier `tp3-mock/` concerne Veillo et nécessite Prism.
+3. Exécuter une requête avec « Send » ; sélectionner uniquement les requêtes TP1 pour un lancement groupé.
 4. Consulter les réponses et les résultats des assertions.
 
 La requête [05-fhir-patient.bru](../bruno/05-fhir-patient.bru) appelle `GET https://hapi.fhir.org/baseR4/Patient?_count=1` avec `Accept: application/fhir+json`.
@@ -83,7 +83,7 @@ Pour tester le PNG dans la requête 04, remplacer temporairement `Accept` par `i
 
 **Assertions disponibles dans Bruno :** neuf tests répartis sur cinq requêtes vérifient les statuts, `args.patient === "42"`, `json.frequenceCardiaque === 72`, `Content-Type: image/svg+xml` et `resourceType === "Bundle"` pour HAPI FHIR.
 
-**Résultat historique déclaré :** cinq requêtes et neuf assertions réussies dans Bruno. Les fichiers de requêtes et leurs tests sont versionnés, mais aucun rapport d’exécution ni capture ne confirme ce résultat dans le dépôt.
+**Résultat historique déclaré :** cinq requêtes et neuf assertions réussies dans Bruno. Les requêtes et tests sont versionnés, sans rapport confirmant ce résultat. Les captures de [Prism](mock-prism.md#résultats-et-preuves) concernent le TP3, pas ces exercices.
 
 **Résultat attendu lors d’une nouvelle exécution :** neuf assertions réussies, avec 200 pour les requêtes 01, 02, 04 et 05, et 404 pour la requête 03. Les services externes doivent être disponibles.
 

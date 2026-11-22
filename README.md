@@ -2,17 +2,61 @@
 
 ## 1. Présentation du projet
 
-Veillo est le projet fil rouge du **Mastère 2 Web Services**, **sujet 6 : télésuivi de patients à domicile**. Les montres connectées seront simulées et toutes les données de santé seront fictives.
+Veillo est le projet fil rouge du **Mastère 2 Web Services**, **sujet 6 : télésuivi de patients à domicile**. Un service hospitalier souhaite consulter les mesures de ses patients à distance et prévenir les soignants lorsqu’un seuil est dépassé.
 
-Les objectifs du projet sont :
+Dans ce projet, les montres sont simulées et toutes les données de santé sont fictives. **Les parcours ci-dessous décrivent le fonctionnement prévu : les fonctionnalités métier restent à implémenter.** Les sections TP présentent le travail réalisé et ses livrables.
 
-- transmettre par lots, toutes les minutes, des mesures de fréquence cardiaque, de SpO₂ et de nombre de pas ;
-- gérer des seuils et générer des alertes en cas de dépassement ;
-- permettre aux personnes autorisées de consulter les mesures ;
-- gérer le consentement des patients et son retrait ;
-- authentifier les montres, les patients et les soignants avec OAuth 2.0 et des scopes distincts.
+### Les acteurs
 
-**Ces fonctionnalités sont des objectifs : elles ne sont pas encore implémentées.** Le dépôt contient actuellement un socle backend et des documents de conception. Ce README suit la progression du projet par TP.
+- **Patient :** personne suivie à domicile. Il consulte ses consentements et peut retirer l’autorisation donnée à un soignant.
+- **Soignant :** professionnel qui suit des patients, consulte leurs mesures et alertes selon ses droits, configure leurs seuils et marque les alertes prises en charge comme traitées.
+- **Montre simulée :** client IoT qui produit des relevés fictifs de fréquence cardiaque, de SpO₂ et de pas, puis les transmet à l’API.
+
+### Des mesures aux alertes
+
+Toutes les minutes, le simulateur envoie un lot pour un patient à `POST /measurements`. Le lot contient `patientId`, un identifiant unique `batchId` et un tableau non vide `measurements`. Chaque relevé comprend un horodatage, une fréquence cardiaque, une SpO₂ et le nombre de pas depuis le relevé précédent.
+
+L’API devra vérifier l’identité et les droits de l’émetteur, puis valider le lot entier : un relevé invalide entraîne son rejet complet. L’enregistrement est atomique, et un `batchId` déjà enregistré est refusé avec `409`, même si son contenu est identique.
+
+Les mesures seront comparées aux seuils applicables du patient. Chaque seuil définit un minimum et un maximum pour un type de mesure ; un seul seuil actif est autorisé par patient et par type. Un dépassement crée une alerte `ACTIVE`, liée à la mesure et au seuil concernés.
+
+```mermaid
+flowchart LR
+    M["Montre simulée"] -->|"Lot toutes les minutes"| API["API : valider et enregistrer"]
+    API --> S["Évaluer les seuils du patient"]
+    S -->|"Dépassement"| A["Créer une alerte ACTIVE"]
+    A --> N["Notifier les soignants concernés"]
+```
+
+La notification push prévue contiendra un message générique, sans donnée de santé. Le soignant pourra ensuite consulter l’alerte dans un client externe et la passer de `ACTIVE` à `TRAITEE`. Les critères de sélection des destinataires restent à préciser.
+
+Le sujet prévoit également un **webhook signé pour l’intégration IoT**. Son contrat et son articulation avec la notification push restent à définir ; aucun mécanisme de livraison n’est encore implémenté.
+
+Les échanges JSON sont détaillés dans les guides [Mesures](docs/contrats/mesures.md), [Seuils](docs/contrats/seuils.md) et [Alertes](docs/contrats/alertes.md).
+
+### Suivi, consentement et accès aux données
+
+Dans le MCD, `SUIVRE` associe les soignants aux patients qu’ils accompagnent. Un patient peut être suivi par plusieurs soignants et inversement. Le **consentement** représente l’autorisation donnée par un patient à un soignant pour accéder à ses données ; il est distinct du suivi.
+
+Le patient connecté consulte ses consentements avec `GET /patients/me/consents` et retire une autorisation avec `DELETE /patients/me/consents/{consentId}`. Le retrait bloque les accès futurs concernés tout en conservant le consentement, la trace du retrait, les mesures et leur historique.
+
+```mermaid
+flowchart TD
+    P["Patient connecté"] -->|"Consulte ou retire"| C["Consentement pour un soignant"]
+    S["Soignant connecté"] --> V{"Scope, suivi et consentement valides ?"}
+    C -->|"Vérifié à chaque accès concerné"| V
+    V -->|"Oui"| D["Accès aux données concernées"]
+    V -->|"Non"| R["Accès refusé"]
+```
+
+Les principes d’accès retenus sont :
+
+- **OAuth 2.0 avec JWT**, avec des scopes distincts pour les montres, les patients et les soignants. Le backend devra vérifier les jetons, les permissions et les droits sur chaque objet.
+- Un soignant accède uniquement aux données de ses patients, avec un consentement valide à chaque accès concerné. Les collections restent limitées aux objets accessibles, quels que soient les filtres transmis.
+- `401` signale une authentification absente ou invalide ; `403`, un rôle ou scope insuffisant ; `404`, un objet inexistant ou hors du périmètre autorisé.
+- Les réponses contiennent uniquement les données nécessaires et les logs ne doivent contenir aucune donnée de santé.
+
+Le détail du contrôle du consentement reste à harmoniser sur certaines opérations. Les formats JSON encore ouverts, les modalités OAuth et les autres décisions à valider sont recensés dans la [conception](docs/design.md#8-décisions-restant-à-clarifier). Le guide [Consentements](docs/contrats/consentements.md) précise les deux opérations du patient.
 
 ## 2. Équipe
 
@@ -27,18 +71,18 @@ Le simulateur IoT enverra ses mesures à l’API REST NestJS/TypeScript. L’API
 
 Technologies présentes, selon [backend/package.json](backend/package.json) :
 
-- **Node.js `22.x` et npm** (`.nvmrc` indique `22`).
+- **Node.js `22.x` et npm** ([backend/.nvmrc](backend/.nvmrc) indique `22`).
 - **NestJS `^11.0.1`**, avec Express, et **TypeScript `^5.7.3`**.
 - **Jest `^30.0.0` et Supertest `^7.0.0`** pour les tests.
 - **ESLint `^9.18.0` et Prettier `^3.4.2`** pour la qualité du code.
 - **TypeORM et le pilote PostgreSQL `pg`**, ainsi que `class-validator` et `class-transformer` pour la validation des DTO.
 - Dépendances complémentaires : `reflect-metadata` (`^0.2.2`) et RxJS (`^7.8.1`).
 
-Ces versions sont les contraintes déclarées, pas un relevé des versions installées. `backend/package-lock.json` verrouille les dépendances utilisées par `npm ci`.
+Ces versions sont les contraintes déclarées, pas un relevé des versions installées. [backend/package-lock.json](backend/package-lock.json) verrouille les dépendances utilisées par `npm ci`.
 
 ### Démarrer avec Docker
 
-Copier `.env.example` vers `.env` si nécessaire et renseigner `DB_PASSWORD`, puis lancer depuis la racine :
+Copier [.env.example](.env.example) vers `.env` si nécessaire et renseigner `DB_PASSWORD`, puis lancer depuis la racine :
 
 ```bash
 docker compose up -d --build
@@ -48,19 +92,43 @@ Le backend utilise par défaut `http://localhost:3000` (`GET /` répond actuelle
 
 ### État actuel et prochaines étapes
 
-**Présent :** un serveur NestJS avec six modules, Controllers et Services préparatoires, une validation globale et une connexion PostgreSQL via TypeORM. Docker Compose démarre les deux services ; aucune table ni fonctionnalité métier n’est encore implémentée.
+**Conception disponible :** MCD, contrats OpenAPI, guides métier et mocks Prism. Certains formats JSON et arbitrages restent ouverts ; un mock ne prouve pas que les règles métier fonctionnent dans le backend.
 
-**À développer :** le simulateur, la réception des lots, le stockage, la consultation des mesures, les seuils, les alertes, les consentements et le contrôle des accès.
+**Socle préparé :** serveur NestJS avec six modules, Controllers et Services préparatoires, validation globale, connexion PostgreSQL configurée via TypeORM et Docker Compose pour les deux services. Aucune entité métier n’est encore enregistrée ; les migrations métier restent des squelettes.
 
-**Choix de conception retenu : OAuth 2.0 avec des jetons d’accès JWT**, avec des scopes distincts pour les montres, les patients et les soignants. Le backend devra vérifier les jetons, les autorisations et le consentement pour les accès concernés. **OAuth 2.0/JWT reste à intégrer**. La connexion PostgreSQL est configurée ; les entités et migrations métier restent à développer. Les options et décisions ouvertes sont détaillées dans [docs/design.md](docs/design.md#7-sécurité).
+**À implémenter :** simulateur, réception et stockage des lots, consultations, seuils, alertes, consentements, notifications et webhook signé. **OAuth 2.0/JWT et les contrôles d’accès restent à intégrer**, selon les [principes de sécurité](docs/design.md#7-sécurité).
 
 ## 4. Organisation du dépôt
 
-- [backend/](backend/) : API NestJS/TypeScript, configuration et tests. Le dossier `src/features/` contient les six modules ; `test/integration/` est encore vide et `test/e2e/` couvre le serveur HTTP et la validation globale.
-- [bruno/](bruno/) : collection de requêtes HTTP et assertions automatiques.
-- [docs/](docs/) : exploration HTTP, conception de l’architecture, diagramme REST et modélisation des données.
-- [IA.md](IA.md) : déclaration des outils et usages de l'IA, avec leurs limites.
-- [README.md](README.md) : présentation du projet, progression par TP et procédures de reproduction.
+Repères principaux (arborescence abrégée) :
+
+```text
+.
+├── backend/                   # API NestJS, persistance et tests
+├── bruno/                     # Exercices TP1 et requêtes du mock TP3
+├── docs/
+│   ├── contrats/              # Guides métier et contrat de cache HTTP
+│   ├── tests/                 # Guide de préparation Schemathesis
+│   ├── images/                # MCD, diagramme REST et captures
+│   ├── design.md              # Architecture, MCD et décisions
+│   ├── api.md                 # Opérations et règles API
+│   └── api-review.md          # Réponses HTTP et points ouverts
+├── openapi/
+│   ├── openapi.yaml           # Point d’entrée du contrat
+│   ├── paths/                 # Opérations par domaine
+│   ├── components/            # Schémas, erreurs, sécurité et cache partagés
+│   ├── openapi.bundle.yaml    # Contrat regroupé, généré
+│   └── .spectral.yaml         # Règles de validation
+├── compose.yaml              # Backend et PostgreSQL
+├── compose.migrations.yaml   # Outillage des migrations
+├── CHOIX_TECHNIQUES.md
+└── IA.md
+```
+
+- **Backend :** les six ressources sont dans [backend/src/features/](backend/src/features/), les migrations dans [backend/src/persistence/migrations/](backend/src/persistence/migrations/) et les tests HTTP dans [backend/test/e2e/](backend/test/e2e/). Le dossier [backend/test/integration/](backend/test/integration/) ne contient pas encore de tests métier.
+- **Documentation :** [docs/contrats/](docs/contrats/) regroupe les échanges par domaine ; [docs/tests/](docs/tests/) prépare les tests et [docs/images/](docs/images/) conserve les diagrammes et captures. Les accès détaillés sont regroupés par TP ci-dessous.
+- **Sources OpenAPI :** [openapi/openapi.yaml](openapi/openapi.yaml), [paths/](openapi/paths/) et [components/](openapi/components/) sont reliés par des `$ref`. Le [bundle](openapi/openapi.bundle.yaml) est généré ; il ne doit pas être modifié manuellement.
+- **Infrastructure :** [compose.yaml](compose.yaml) et [compose.migrations.yaml](compose.migrations.yaml) sont expliqués dans le [guide Docker](docs/docker.md). Les contributions de l’IA sont déclarées dans [IA.md](IA.md).
 
 ## 5. TP1 — Initialisation et découverte HTTP
 
@@ -76,8 +144,13 @@ Les livrables du TP2 sont :
 
 - **Endpoints et méthodes HTTP** : [docs/api.md](docs/api.md)
 - **Réponses HTTP** : [docs/api-review.md](docs/api-review.md)
-- **Diagramme REST** : [Voir le diagramme REST de Veillo](docs/images/Capture%20d%E2%80%99e%CC%81cran%202026-10-31%20a%CC%80%2020.37.52.png)
-- **MCD — Conception de la base de données** : [Voir le MCD de Veillo](docs/images/mcd-veillo.png)
+- **Architecture et MCD source** : [docs/design.md](docs/design.md)
+- **Diagramme REST** : [Voir le diagramme REST de Veillo](docs/design.md#5-modèle-de-ressources-rest)
+- **MCD — Conception de la base de données** : [Voir le MCD de Veillo](docs/images/Modele%20Conceptuel%20de%20Donn%C3%A9e%20MCD-veillo.png)
+- **MLD — Modèle logique des données** : [Voir le MLD de Veillo](docs/images/Sch%C3%A9ma%20relationnel%20MLD%20%E2%80%94%20Veillo.png)
+- **MPD — Modèle physique des données** : [Voir le MPD de Veillo](docs/images/Sch%C3%A9ma%20MPD%20relationnel%20Veillo.png)
+
+Guides métier : [Mesures](docs/contrats/mesures.md), [Patients](docs/contrats/patients.md), [Alertes](docs/contrats/alertes.md), [Consentements](docs/contrats/consentements.md), [Seuils](docs/contrats/seuils.md) et [Soignant](docs/contrats/soignant.md).
 
 Consigne complémentaire du support de cours : fonction principale `nommerRessourcePilote`, référence à la note interne **NC-102**. Cette mention ne correspond pas à une fonction actuellement implémentée ; la nécessité de son implémentation reste à vérifier dans le support.
 
@@ -85,10 +158,12 @@ Consigne complémentaire du support de cours : fonction principale `nommerRessou
 
 Les livrables du TP3 sont :
 
-- **Contrat OpenAPI** : [openapi/openapi.yaml](openapi/openapi.yaml)
-- **Outillage TP3** : [docs/outillage-tp3.md](docs/outillage-tp3.md)
-- **Mock Prism** : [docs/mock-prism.md](docs/mock-prism.md)
-- **Capture du mock** : [docs/mock.png](docs/mock.png)
+- **Contrat OpenAPI** : [fichier parent](openapi/openapi.yaml), [opérations par domaine](openapi/paths/) et [composants réutilisables](openapi/components/)
+- **Bundle généré** : [openapi/openapi.bundle.yaml](openapi/openapi.bundle.yaml)
+- **Organisation et commandes des outils** : [docs/outillage-tp3.md](docs/outillage-tp3.md)
+- **Règles Spectral** : [openapi/.spectral.yaml](openapi/.spectral.yaml)
+- **Mock Prism** : [docs/mock-prism.md](docs/mock-prism.md), [requêtes Bruno](bruno/tp3-mock/) et [environnement du mock](bruno/environments/mock.bru)
+- **Documentation HTML Redocly** : [docs/index.html](docs/index.html) — fichier encore vide, à générer selon le guide d’outillage
 
 Flux : `openapi.yaml → Spectral → Prism → Bruno`
 
@@ -97,4 +172,23 @@ Flux : `openapi.yaml → Spectral → Prism → Bruno`
 Le TP4 porte sur l’implémentation du backend NestJS à partir du contrat OpenAPI et des règles métier définies.
 
 - **Choix techniques** : [CHOIX_TECHNIQUES.md](CHOIX_TECHNIQUES.md)
+- **Organisation et commandes du backend** : [backend/README.md](backend/README.md)
 - **Docker et migrations TypeORM** : [docs/docker.md](docs/docker.md)
+
+## 9. TP5 — Tests d’intégration et Schemathesis
+
+Le travail est préparé dans le [guide Schemathesis pour Elamine](docs/tests/schemathesis.md). Il distingue les essais sur Prism des vérifications futures du backend et de la CI.
+
+- **Tests HTTP du socle** : [backend/test/e2e/](backend/test/e2e/)
+- **Emplacement des tests d’intégration métier** : [backend/test/integration/](backend/test/integration/), encore vide
+
+Les tests métier et le workflow CI restent à développer.
+
+## 10. TP6 — Cache HTTP des seuils
+
+Le contrat des requêtes conditionnelles est défini ; son implémentation reste à réaliser.
+
+- **Guide central du cache HTTP** : [docs/contrats/cache.md](docs/contrats/cache.md)
+- **Composants OpenAPI partagés** : [openapi/components/cache.yaml](openapi/components/cache.yaml)
+- **Opérations concernées** : [openapi/paths/seuils.yaml](openapi/paths/seuils.yaml)
+- **Espace de travail et tests à compléter** : [backend/src/common/cache/](backend/src/common/cache/), avec son [guide de développement](backend/src/common/cache/README.md)

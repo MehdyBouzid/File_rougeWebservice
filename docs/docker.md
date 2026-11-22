@@ -1,6 +1,6 @@
 # Docker — Commandes de développement Veillo
 
-Toutes les commandes se lancent depuis la racine du dépôt, avec Docker Desktop démarré ; chacun utilise son propre `.env` et sa propre base locale.
+Commandes à lancer depuis la racine, avec Docker Desktop démarré. Chaque développeur conserve son `.env` et sa base locale. Configuration : [compose.yaml](../compose.yaml), [outillage migrations](../compose.migrations.yaml) et [.env.example](../.env.example).
 
 ## 1. Démarrer ou reconstruire
 
@@ -10,7 +10,7 @@ Créer le `.env` uniquement s’il n’existe pas, puis y renseigner `DB_PASSWOR
 [ -f .env ] || cp .env.example .env
 ```
 
-Construire les images et démarrer `backend` et `postgres`, au premier lancement ou après une modification du code, des dépendances ou du Dockerfile.
+Construire et démarrer `backend` et `postgres`, au premier lancement ou après un changement de code, de dépendances ou du Dockerfile.
 
 ```bash
 docker compose up -d --build
@@ -42,7 +42,7 @@ Afficher l’état et les ports des conteneurs, y compris ceux arrêtés, et vé
 docker compose ps -a
 ```
 
-Afficher les derniers journaux puis les suivre en continu, avec `Ctrl+C` pour quitter sans arrêter les services.
+Suivre les 30 dernières lignes de logs ; `Ctrl+C` quitte sans arrêter les services.
 
 ```bash
 docker compose logs --tail=30 -f backend postgres
@@ -56,13 +56,43 @@ Ouvrir un shell dans le backend, avec `exit` pour quitter.
 docker compose exec backend sh
 ```
 
-## 5. PostgreSQL et tables
+## 5. Commandes PostgreSQL utiles
 
-Ouvrir `psql` avec la base et l’utilisateur configurés dans le conteneur, avec `\q` pour quitter.
+### Se connecter
+
+Depuis la racine du projet, avec le service `postgres` démarré, ouvrir `psql` avec la base et l’utilisateur configurés dans le conteneur.
 
 ```bash
 docker compose exec postgres sh -c 'exec psql -X -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
+
+Les commandes ci-dessous se saisissent dans `psql`, pas dans le terminal système. Les commandes commençant par `\` ne nécessitent pas de point-virgule ; les requêtes SQL se terminent par `;`.
+
+### Consulter les tables et leur structure
+
+**Les tables métier doivent d’abord être créées par leurs migrations.** Le démarrage de PostgreSQL ne crée pas `patient`, `seuil` ou `consentement` ; une table absente n’est donc pas forcément une erreur de connexion.
+
+- `\dt` : lister les tables visibles.
+- `\dt+` : afficher aussi leur taille et leur description.
+- `\d` : lister les relations visibles, notamment les tables, vues et séquences.
+- `\d patient` : afficher la structure de Patient (colonnes, types, clés et contraintes).
+- `\d seuil` : afficher la structure de Seuil.
+- `\d consentement` : afficher la structure de Consentement.
+
+### Aide et sortie
+
+- `\?` : afficher l’aide des commandes `psql` ; `?` seul ne suffit pas.
+- `\q` : quitter `psql` sans arrêter PostgreSQL.
+
+### Voir les index, schémas et bases
+
+- `\di` : lister les index visibles.
+- `\di public.*` : lister les index du schéma `public`, dont ceux des tables métier déjà créées.
+- `\dn` : lister les schémas.
+- `\l` : lister les bases de données.
+- `\conninfo` : vérifier la base, l’utilisateur et la connexion en cours.
+
+Les tables métier sont dans le schéma `public` ; pour préciser le schéma, utiliser par exemple `\d public.patient`.
 
 Lister les tables du schéma `public` sans ouvrir de session interactive.
 
@@ -70,9 +100,29 @@ Lister les tables du schéma `public` sans ouvrir de session interactive.
 docker compose exec postgres sh -c 'exec psql -X -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dt public.*"'
 ```
 
+### Consulter l’historique des migrations
+
+Dans `psql`, afficher les migrations enregistrées par TypeORM, dans leur ordre d’application :
+
+```sql
+SELECT id, timestamp, name
+FROM public.veillo_migrations
+ORDER BY id;
+```
+
+Cet historique contient les migrations appliquées, pas celles encore en attente. Ne pas le modifier manuellement ; si la table n’existe pas encore, TypeORM la créera lors de la gestion des migrations.
+
 ## Migrations TypeORM
 
-Les fichiers sont dans `backend/src/persistence/migrations/` ; **les six squelettes actuels doivent être complétés avant toute application**, car leurs méthodes lèvent volontairement une erreur.
+Les fichiers sont dans [backend/src/persistence/migrations/](../backend/src/persistence/migrations/). **Certains squelettes lèvent encore une erreur : les compléter et les relire avant d’appliquer toutes les migrations en attente.**
+
+**Exécuter uniquement la migration Patient (exemple)** depuis la racine, avec PostgreSQL démarré,
+
+```bash
+docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools node -e 'const d=require("./dist/persistence/data-source.js").default;d.setOptions({migrations:["dist/persistence/migrations/1794929035067-CreatePatients.js"]});d.initialize().then(async()=>{try{await d.runMigrations()}finally{await d.destroy()}}).catch(e=>{console.error(e);process.exitCode=1})'
+```
+
+Cette commande conserve la connexion et l’historique `veillo_migrations` configurés : elle applique Patient dans une transaction si cette migration n’est pas déjà enregistrée, sans exécuter les autres migrations ni modifier les fichiers du projet. Elle a été vérifiée par lecture du code, mais n’a pas été exécutée.
 
 Créer un squelette horodaté en remplaçant `DescriptionEvolution` par un nom explicite en PascalCase.
 
@@ -108,7 +158,12 @@ docker compose exec backend npm run migration:run
 
 **Avant application :** reconstruire avec la commande de la section 1 pour inclure les migrations compilées ; un statut vide dans une ancienne image ne signifie pas que les sources sont vides.
 
-**À deux :** récupérer les dernières migrations, vérifier leur ordre et leurs dépendances avant fusion, ne jamais modifier une migration appliquée ou partagée et ne lancer qu’une application à la fois sur une base commune ; les timestamps ne garantissent pas l’absence de conflit SQL.
+**Travail à deux :**
+
+- Récupérer les dernières migrations avant d’en créer une.
+- Vérifier noms, timestamps, ordre, dépendances et SQL avant fusion : un timestamp unique n’empêche pas un conflit de schéma.
+- Corriger une migration partagée ou appliquée par une nouvelle migration.
+- N’appliquer qu’une série à la fois sur une base commune.
 
 `synchronize: false` et `migrationsRun: false` restent configurés : démarrer le backend n’applique aucune migration, et aucun conflit ne doit être résolu en supprimant ou réinitialisant une base.
 

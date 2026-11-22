@@ -1,6 +1,6 @@
 # Contrats API — Alertes
 
-Quand une mesure dépasse un seuil, le backend crée une alerte `ACTIVE`, liée à cette mesure et à ce seuil du même patient. Les soignants la consultent et la marquent comme traitée. Ces opérations sont réservées au soignant (scope soignant). Ce guide décrit le contrat attendu, pas une implémentation.
+Un dépassement crée une alerte `ACTIVE`, liée à la mesure et au seuil du même patient. Le soignant la consulte puis peut la traiter. Les opérations exigent le scope soignant et restent à implémenter.
 
 Sources : [opérations alertes](../../openapi/paths/alerts.yaml), [schémas JSON](../../openapi/components/schemas.yaml) et [règles métier](../design.md#6-règles-métier). Les succès utilisent `application/json` et les erreurs `application/problem+json`.
 
@@ -97,7 +97,7 @@ Content-Type: application/json
 
 ## Notifications
 
-La création d’une alerte déclenche une [notification push](../api.md#notifications-des-alertes) générique, sans donnée de santé et sans nouvel endpoint. Le soignant ouvre ensuite le détail avec `GET /alerts/{alertId}`.
+La [notification push](../api.md#notifications-des-alertes) prévue est générique, sans donnée de santé. Le soignant ouvre ensuite `GET /alerts/{alertId}`. Le webhook signé demandé par le sujet reste à définir ; voir la [conception](../design.md#contrats-techniques).
 
 ## Points à valider
 
@@ -112,4 +112,4 @@ La création d’une alerte déclenche une [notification push](../api.md#notific
 - Choix des destinataires parmi les soignants concernés : `RECEVOIR` en autorise plusieurs sans définir leur sélection.
 - Modalités OAuth/JWT : voir la [définition de sécurité](../../openapi/components/security.yaml).
 
-Ces précisions ne changent pas le MCD et ne définissent pas de calcul ou de stockage.
+**Écart à arbitrer :** le consentement reste conditionnel pour la liste et le PATCH, alors que ce dernier renvoie le détail protégé par le GET. Voir la [conception](../design.md#périmètre-du-contrôle-du-consentement). Aucun droit n’est modifié ici.

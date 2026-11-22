@@ -1,21 +1,18 @@
 # Contrats API — Cache HTTP et requêtes conditionnelles
 
-Ce guide explique comment fonctionnent `ETag`, `If-None-Match`, `If-Match` et les réponses `304`, `412` et `428`. Il décrit le contrat attendu, pas une implémentation existante.
+Ce guide décrit la lecture et la modification conditionnelles des seuils avec `ETag`. Le contrat est défini ; les utilitaires et leur raccordement restent à développer.
 
 Sources : [composants du cache](../../openapi/components/cache.yaml) (source de vérité), [opérations seuils](../../openapi/paths/seuils.yaml) et [guide des seuils](seuils.md#requêtes-conditionnelles-etag). Les erreurs utilisent `application/problem+json`.
 
 ## L’idée en deux phrases
 
-L’API donne à chaque seuil une étiquette, l’**`ETag`**. Le client la renvoie ensuite pour dire « donne-moi le seuil seulement s’il a changé » (lecture) ou « modifie-le seulement s’il n’a pas changé depuis ma lecture » (modification).
-
-- En lecture, cela évite de retransmettre un JSON identique.
-- En modification, cela évite d’écraser le travail d’un autre soignant sans le savoir.
+L’**`ETag`** identifie l’état du seuil. Le client le renvoie pour relire sans télécharger un JSON inchangé, ou pour modifier sans écraser une écriture concurrente.
 
 Le contrat ne définit pas de `Cache-Control` : aucune durée de conservation n’est imposée au client.
 
 ## Pourquoi seulement les seuils ?
 
-Le document du formateur `tp-06-versioning-cache.pdf` (page 1, « Ce qui change selon votre sujet ») désigne, pour le sujet 6 Santé, les seuils comme évolution v2 suggérée et le seuil comme ressource protégée par `ETag`. Cette protection est **obligatoire**. Le formateur ne l’impose ni sur les alertes ni sur les mesures, et l’équipe a choisi de s’en tenir aux seuils pour ne pas complexifier le projet. Aucun `ETag`, `If-Match` ni `304` n’est donc à prévoir ailleurs.
+L’exigence du formateur reportée dans le projet impose cette protection aux **seuils**, pas aux mesures ou alertes. Le support cité, `tp-06-versioning-cache.pdf` (page 1), suggère les seuils comme évolution v2 ; le PDF n’est pas versionné ici. L’équipe limite le cache conditionnel aux seuils.
 
 ## Routes concernées
 
@@ -40,25 +37,18 @@ GET seuil ──► 200 + ETag "A"
 
 ## Les trois en-têtes
 
-**`ETag`** (en réponse). C’est l’étiquette du seuil, une valeur opaque entre guillemets, par exemple `"4b1f0c9e7a3d2e58"`. Elle est calculée par le backend à partir de la représentation complète du seuil et change dès qu’une valeur change. Le client la garde et la renvoie telle quelle, sans l’interpréter. Elle est présente dans les réponses `200`, `201` et `304`.
-
-**`If-None-Match`** (en requête, sur le `GET`, facultatif). Le client y met l’`ETag` qu’il possède déjà. Si le seuil n’a pas changé, il reçoit un `304` sans corps. La comparaison est faible (RFC 9110).
-
-**`If-Match`** (en requête, sur le `PATCH`, exigé). Le client y met l’`ETag` du seuil qu’il a lu. Si le seuil a changé depuis, la modification est refusée. La comparaison est forte (RFC 9110). OpenAPI le déclare facultatif pour que `428` reste atteignable avec les outils de validation, mais le backend l’exige.
+- **`ETag` :** validateur fort calculé depuis le seuil complet, renvoyé dans les `200`, `201` et `304`. Le client conserve cette valeur opaque entre guillemets et la renvoie telle quelle.
+- **`If-None-Match` :** facultatif sur GET, comparaison faible. Même état → `304` sans corps.
+- **`If-Match` :** exigé sur PATCH, comparaison forte. État différent → `412` ; en-tête absent → `428`. OpenAPI le marque facultatif pour laisser le backend produire `428`.
 
 ## Les réponses, une par une
 
-**`200` sur le `GET`.** Le seuil est accessible et `If-None-Match` est absent ou différent. Le corps est le seuil, avec son `ETag`. Le client le conserve pour la suite.
-
-**`201` sur le `POST`.** Le seuil vient d’être créé. La réponse porte `Location` (l’adresse du `GET` individuel) et l’`ETag`, donc le client peut modifier le seuil tout de suite sans le relire.
-
-**`304` sur le `GET`.** `If-None-Match` correspond à l’état courant : le client réutilise son JSON. Pas de corps, mais l’`ETag` est répété. Un `304` n’est possible que si la requête aurait abouti en `200`.
-
-**`200` sur le `PATCH`.** `If-Match` était valide et la modification est acceptée. La réponse contient le seuil modifié et un **nouvel** `ETag`, à utiliser pour le prochain `PATCH`.
-
-**`412` sur le `PATCH`.** `If-Match` ne correspond plus à l’état courant : quelqu’un a modifié le seuil entre-temps. Le client relit le seuil (`GET`), reprend sa modification sur la nouvelle version, puis réessaie.
-
-**`428` sur le `PATCH`.** `If-Match` est absent alors que la modification l’exige. Le client doit d’abord lire le seuil pour obtenir son `ETag`.
+- **GET `200` :** seuil accessible, `If-None-Match` absent ou différent → JSON et ETag.
+- **POST `201` :** seuil créé → JSON, `Location` du GET individuel et ETag utilisable pour un PATCH.
+- **GET `304` :** état identique → réutiliser le JSON local ; aucun corps, ETag répété. Possible seulement si le GET aurait donné `200`.
+- **PATCH `200` :** modification acceptée → JSON et nouvel ETag à conserver.
+- **PATCH `412` :** état périmé → relire le seuil, reprendre la modification sur cet état puis réessayer.
+- **PATCH `428` :** `If-Match` absent → obtenir l’ETag avant de modifier.
 
 ## Exemples
 
@@ -125,7 +115,7 @@ Content-Type: application/problem+json
 
 ## Contrôles d’accès avant toute réponse conditionnelle
 
-Un `ETag` ne donne aucun droit d’accès. Les contrôles d’accès passent donc toujours en premier : sinon un `304` ou un `412` révélerait l’état d’un seuil à un appelant non autorisé. L’ordre est le suivant.
+Vérifier les accès avant les préconditions : un `304` ou `412` ne doit pas révéler l’état d’un seuil inaccessible. Le contrat indique cet ordre :
 
 ```text
 1. jeton absent ou invalide ................................ 401
@@ -149,4 +139,6 @@ Sur le `GET`, `If-None-Match` n’est évalué qu’après les contrôles 1 à 3
 - Erreurs de structure détectables sans accès aux données (JSON mal formé, corps vide, propriété inconnue) : `400` avant `428` et `412`, ou après.
 - Consentement : contrôle dans la même transaction, et périmètre selon les opérations. S’il est retenu, son absence renvoie `404`.
 
-**Mécanisme backend futur, non implémenté.** Pour éviter les écritures concurrentes, le `PATCH` devra vérifier l’`ETag` et écrire dans une même transaction (verrou de ligne, index unique partiel pour l’unicité du seuil actif). Voir le [guide des seuils](seuils.md#requêtes-conditionnelles-etag).
+**Écart à arbitrer :** les guides laissent l’ordre du `400` de structure ouvert, alors qu’OpenAPI place `428` et `412` avant `400`. Aucune priorité n’est changée ici.
+
+L’écriture atomique future (vérification ETag, verrou de ligne, index unique partiel) est décrite une seule fois dans le [guide des seuils](seuils.md#requêtes-conditionnelles-etag). Pour coder les utilitaires, voir l’[espace de travail cache](../../backend/src/common/cache/README.md).
