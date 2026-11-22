@@ -1,4 +1,5 @@
 import { createDatabaseOptions } from './database.config';
+import { featureEntities } from './feature-entities.generated';
 
 describe('Configuration PostgreSQL', () => {
   const env = {
@@ -16,7 +17,7 @@ describe('Configuration PostgreSQL', () => {
       database: 'test',
       synchronize: false,
       migrationsRun: false,
-      entities: [],
+      entities: Object.values(featureEntities).flat(),
     });
   });
 
