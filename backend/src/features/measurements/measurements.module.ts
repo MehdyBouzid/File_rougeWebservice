@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CallerAuthGuard } from '../../common/auth/caller-auth.guard';
 import { featureEntities } from '../../persistence/feature-entities.generated';
 import { AlertsModule } from '../alerts/alerts.module';
 import { CaregiversModule } from '../caregivers/caregivers.module';
@@ -14,7 +13,7 @@ import { MeasurementsService } from './services/measurements.service';
     AlertsModule,
   ],
   controllers: [MeasurementsController],
-  providers: [MeasurementsService, CallerAuthGuard],
+  providers: [MeasurementsService],
   exports: [MeasurementsService],
 })
 export class MeasurementsModule {}

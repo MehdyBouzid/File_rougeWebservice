@@ -4,7 +4,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { DataSource, EntityManager, Repository } from 'typeorm';
-import type { AuthenticatedCaller } from '../../../common/auth/caller.types';
 import { MeasurementType } from '../../../common/types/measurement-type.enum';
 import type { CaregiversService } from '../../caregivers/services/caregivers.service';
 import type { Measurement } from '../../measurements/entities/measurement.entity';
@@ -25,11 +24,6 @@ describe('AlertsService', () => {
   let txManager: { query: jest.Mock; getRepository: jest.Mock };
   let alertSaveMock: jest.Mock;
   let caregiversService: { getCaregiversForPatient: jest.Mock };
-
-  const caller: AuthenticatedCaller = {
-    id: CAREGIVER_ID,
-    scopes: ['soignant'],
-  };
 
   beforeEach(() => {
     alertsRepo = {};
@@ -142,21 +136,17 @@ describe('AlertsService', () => {
   describe('listAlerts', () => {
     it('renvoie 400 si startDate > endDate', async () => {
       await expect(
-        service.listAlerts(
-          {
-            startDate: '2026-11-25T00:00:00Z',
-            endDate: '2026-11-20T00:00:00Z',
-          },
-          caller,
-        ),
+        service.listAlerts({
+          startDate: '2026-11-25T00:00:00Z',
+          endDate: '2026-11-20T00:00:00Z',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('renvoie 200 avec une liste vide pour un filtre patientId hors périmètre ou non UUID', async () => {
-      const page = await service.listAlerts(
-        { patientId: 'patient-inexistant' },
-        caller,
-      );
+    it('renvoie 200 avec une liste vide pour un filtre patientId non UUID', async () => {
+      const page = await service.listAlerts({
+        patientId: 'patient-inexistant',
+      });
 
       expect(page).toEqual({
         items: [],
@@ -190,7 +180,7 @@ describe('AlertsService', () => {
 
       const page = await service.listAlerts(
         { status: AlertStatus.ACTIVE, page: 0, size: 50 },
-        caller,
+        CAREGIVER_ID,
       );
 
       expect(page).toEqual({
@@ -219,10 +209,10 @@ describe('AlertsService', () => {
   });
 
   describe('getAlertDetail', () => {
-    it('renvoie 404 si l’alerte est hors périmètre ou inexistante', async () => {
+    it('renvoie 404 si l’alerte est inexistante', async () => {
       dataSource.query.mockResolvedValueOnce([]);
 
-      await expect(service.getAlertDetail(ALERT_ID, caller)).rejects.toThrow(
+      await expect(service.getAlertDetail(ALERT_ID)).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -242,7 +232,7 @@ describe('AlertsService', () => {
         },
       ]);
 
-      const detail = await service.getAlertDetail(ALERT_ID, caller);
+      const detail = await service.getAlertDetail(ALERT_ID);
 
       expect(detail).toEqual({
         alertId: ALERT_ID,
@@ -257,15 +247,11 @@ describe('AlertsService', () => {
   });
 
   describe('acknowledgeAlert', () => {
-    it('renvoie 404 si l’alerte est introuvable ou hors périmètre', async () => {
+    it('renvoie 404 si l’alerte est introuvable', async () => {
       txManager.query.mockResolvedValueOnce([]);
 
       await expect(
-        service.acknowledgeAlert(
-          ALERT_ID,
-          { statut: AlertStatus.TRAITEE },
-          caller,
-        ),
+        service.acknowledgeAlert(ALERT_ID, { statut: AlertStatus.TRAITEE }),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -285,11 +271,7 @@ describe('AlertsService', () => {
       ]);
 
       await expect(
-        service.acknowledgeAlert(
-          ALERT_ID,
-          { statut: AlertStatus.TRAITEE },
-          caller,
-        ),
+        service.acknowledgeAlert(ALERT_ID, { statut: AlertStatus.TRAITEE }),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -310,11 +292,9 @@ describe('AlertsService', () => {
         ])
         .mockResolvedValueOnce([]);
 
-      const updated = await service.acknowledgeAlert(
-        ALERT_ID,
-        { statut: AlertStatus.TRAITEE },
-        caller,
-      );
+      const updated = await service.acknowledgeAlert(ALERT_ID, {
+        statut: AlertStatus.TRAITEE,
+      });
 
       expect(updated).toEqual({
         alertId: ALERT_ID,

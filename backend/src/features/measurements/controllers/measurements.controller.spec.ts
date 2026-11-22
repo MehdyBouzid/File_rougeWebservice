@@ -1,5 +1,4 @@
 import type { Response } from 'express';
-import type { AuthenticatedCaller } from '../../../common/auth/caller.types';
 import type { MeasurementsService } from '../services/measurements.service';
 import { MeasurementsController } from './measurements.controller';
 
@@ -18,10 +17,6 @@ describe('MeasurementsController', () => {
     const controller = new MeasurementsController(service);
     const setHeader = jest.fn();
     const response = { setHeader } as unknown as Response;
-    const caller: AuthenticatedCaller = {
-      id: 'simulator',
-      scopes: ['montre'],
-    };
 
     const result = await controller.ingestMeasurements(
       {
@@ -36,7 +31,6 @@ describe('MeasurementsController', () => {
           },
         ],
       },
-      caller,
       response,
     );
 

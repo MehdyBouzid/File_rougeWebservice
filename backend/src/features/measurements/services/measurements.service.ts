@@ -6,7 +6,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import type { AuthenticatedCaller } from '../../../common/auth/caller.types';
 import { buildPaginationLinks } from '../../../common/http/pagination.util';
 import {
   isUuid,
@@ -44,18 +43,7 @@ export class MeasurementsService {
     private readonly alertsService: AlertsService,
   ) {}
 
-  async ingestBatch(
-    dto: MeasurementBatchDto,
-    caller: AuthenticatedCaller,
-  ): Promise<BatchReceiptDto> {
-    // BOLA en écriture : patientId seul ne confère aucun droit.
-    if (
-      caller.authorizedPatientIds &&
-      !caller.authorizedPatientIds.includes(dto.patientId)
-    ) {
-      throw new NotFoundException('Patient introuvable.');
-    }
-
+  async ingestBatch(dto: MeasurementBatchDto): Promise<BatchReceiptDto> {
     if (!isUuid(dto.patientId)) {
       throw new NotFoundException('Patient introuvable.');
     }
@@ -135,20 +123,40 @@ export class MeasurementsService {
   async listPatientMeasurements(
     patientId: string,
     query: ListMeasurementsQueryDto,
-    caller: AuthenticatedCaller,
+    caregiverId?: string,
   ): Promise<MeasurementPageDto> {
     const { start, end } = parseAndValidateDateRange(
       query.startDate,
       query.endDate,
     );
 
-    const hasAccess = await this.caregiversService.hasAccessToPatient(
-      caller.id,
-      patientId,
-      { requireConsent: true },
-    );
-    if (!hasAccess) {
+    if (!isUuid(patientId)) {
       throw new NotFoundException('Patient introuvable.');
+    }
+
+    if (caregiverId !== undefined) {
+      const hasAccess = await this.caregiversService.hasAccessToPatient(
+        caregiverId,
+        patientId,
+        { requireConsent: true },
+      );
+      if (!hasAccess) {
+        throw new NotFoundException('Patient introuvable.');
+      }
+    } else {
+      const patientRows: Array<{ id_patient: string }> =
+        await this.dataSource.query(
+          `
+            SELECT id_patient
+            FROM public.patient
+            WHERE id_patient = $1
+            LIMIT 1
+          `,
+          [patientId],
+        );
+      if (patientRows.length === 0) {
+        throw new NotFoundException('Patient introuvable.');
+      }
     }
 
     const page = query.page ?? 0;

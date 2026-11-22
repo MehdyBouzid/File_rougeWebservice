@@ -4,7 +4,6 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { DataSource, EntityManager, Repository } from 'typeorm';
-import type { AuthenticatedCaller } from '../../../common/auth/caller.types';
 import type { AlertsService } from '../../alerts/services/alerts.service';
 import type { CaregiversService } from '../../caregivers/services/caregivers.service';
 import { MeasurementBatch } from '../entities/measurement-batch.entity';
@@ -12,7 +11,6 @@ import { Measurement } from '../entities/measurement.entity';
 import { MeasurementsService } from './measurements.service';
 
 const PATIENT_ID = '22222222-2222-4222-8222-222222222222';
-const OTHER_PATIENT_ID = '33333333-3333-4333-8333-333333333333';
 const CAREGIVER_ID = '11111111-1111-4111-8111-111111111111';
 
 describe('MeasurementsService', () => {
@@ -31,22 +29,11 @@ describe('MeasurementsService', () => {
   let measurementCreate: jest.Mock;
   let measurementSave: jest.Mock;
   let managerQuery: jest.Mock;
-  let dataSource: { transaction: jest.Mock };
+  let dataSource: { query: jest.Mock; transaction: jest.Mock };
   let caregiversService: { hasAccessToPatient: jest.Mock };
   let alertsService: {
     evaluateMeasurementsAndCreateAlerts: jest.Mock;
     notifyCaregiversOfNewAlerts: jest.Mock;
-  };
-
-  const watchCaller: AuthenticatedCaller = {
-    id: 'simulator-01',
-    scopes: ['montre'],
-    authorizedPatientIds: [PATIENT_ID],
-  };
-
-  const caregiverCaller: AuthenticatedCaller = {
-    id: CAREGIVER_ID,
-    scopes: ['soignant'],
   };
 
   beforeEach(() => {
@@ -83,6 +70,7 @@ describe('MeasurementsService', () => {
     } as unknown as EntityManager;
 
     dataSource = {
+      query: jest.fn(),
       transaction: jest.fn(
         (callback: (txManager: EntityManager) => Promise<unknown>) =>
           callback(manager),
@@ -121,12 +109,9 @@ describe('MeasurementsService', () => {
       ],
     };
 
-    it('renvoie 404 si le patient n’est pas autorisé pour cette montre (BOLA écriture)', async () => {
+    it('renvoie 404 si patientId n’est pas un UUID valide', async () => {
       await expect(
-        service.ingestBatch(
-          { ...validDto, patientId: OTHER_PATIENT_ID },
-          watchCaller,
-        ),
+        service.ingestBatch({ ...validDto, patientId: 'invalide' }),
       ).rejects.toThrow(NotFoundException);
       expect(dataSource.transaction).not.toHaveBeenCalled();
     });
@@ -134,7 +119,7 @@ describe('MeasurementsService', () => {
     it('renvoie 404 si le patient n’existe pas en base', async () => {
       managerQuery.mockResolvedValueOnce([]);
 
-      await expect(service.ingestBatch(validDto, watchCaller)).rejects.toThrow(
+      await expect(service.ingestBatch(validDto)).rejects.toThrow(
         NotFoundException,
       );
       expect(batchInsert).not.toHaveBeenCalled();
@@ -144,7 +129,7 @@ describe('MeasurementsService', () => {
       managerQuery.mockResolvedValueOnce([{ id_patient: PATIENT_ID }]);
       batchInsert.mockRejectedValueOnce({ code: '23505' });
 
-      await expect(service.ingestBatch(validDto, watchCaller)).rejects.toThrow(
+      await expect(service.ingestBatch(validDto)).rejects.toThrow(
         ConflictException,
       );
       expect(measurementSave).not.toHaveBeenCalled();
@@ -158,7 +143,7 @@ describe('MeasurementsService', () => {
         recipientCaregiverIds: [CAREGIVER_ID],
       });
 
-      const receipt = await service.ingestBatch(validDto, watchCaller);
+      const receipt = await service.ingestBatch(validDto);
 
       expect(receipt).toEqual({
         batchId: 'lot-001',
@@ -179,27 +164,31 @@ describe('MeasurementsService', () => {
   describe('listPatientMeasurements', () => {
     it('renvoie 400 si startDate est postérieure à endDate', async () => {
       await expect(
-        service.listPatientMeasurements(
-          PATIENT_ID,
-          {
-            startDate: '2026-11-20T00:00:00Z',
-            endDate: '2026-11-19T00:00:00Z',
-          },
-          caregiverCaller,
-        ),
+        service.listPatientMeasurements(PATIENT_ID, {
+          startDate: '2026-11-20T00:00:00Z',
+          endDate: '2026-11-19T00:00:00Z',
+        }),
       ).rejects.toThrow(BadRequestException);
     });
 
-    it('renvoie 404 si le soignant ne suit pas le patient ou sans consentement valide (BOLA)', async () => {
-      caregiversService.hasAccessToPatient.mockResolvedValueOnce(false);
+    it('renvoie 404 si le patient n’existe pas en base', async () => {
+      dataSource.query.mockResolvedValueOnce([]);
 
       await expect(
-        service.listPatientMeasurements(PATIENT_ID, {}, caregiverCaller),
+        service.listPatientMeasurements(PATIENT_ID, {}),
       ).rejects.toThrow(NotFoundException);
     });
 
-    it('retourne les mesures paginées avec métadonnées', async () => {
-      caregiversService.hasAccessToPatient.mockResolvedValueOnce(true);
+    it('renvoie 404 si caregiverId est fourni sans suivi/consentement valide', async () => {
+      caregiversService.hasAccessToPatient.mockResolvedValueOnce(false);
+
+      await expect(
+        service.listPatientMeasurements(PATIENT_ID, {}, CAREGIVER_ID),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('retourne les mesures paginées avec métadonnées et links', async () => {
+      dataSource.query.mockResolvedValueOnce([{ id_patient: PATIENT_ID }]);
       queryBuilder.getManyAndCount.mockResolvedValueOnce([
         [
           {
@@ -214,11 +203,10 @@ describe('MeasurementsService', () => {
         51,
       ]);
 
-      const page = await service.listPatientMeasurements(
-        PATIENT_ID,
-        { page: 0, size: 50 },
-        caregiverCaller,
-      );
+      const page = await service.listPatientMeasurements(PATIENT_ID, {
+        page: 0,
+        size: 50,
+      });
 
       expect(page).toEqual({
         items: [

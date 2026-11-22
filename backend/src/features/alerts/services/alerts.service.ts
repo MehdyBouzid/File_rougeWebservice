@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, type EntityManager, Repository } from 'typeorm';
-import type { AuthenticatedCaller } from '../../../common/auth/caller.types';
 import { buildPaginationLinks } from '../../../common/http/pagination.util';
 import { MeasurementType } from '../../../common/types/measurement-type.enum';
 import {
@@ -178,7 +177,7 @@ export class AlertsService {
 
   async listAlerts(
     query: ListAlertsQueryDto,
-    caller: AuthenticatedCaller,
+    caregiverId?: string,
   ): Promise<AlertPageDto> {
     const { start, end } = parseAndValidateDateRange(
       query.startDate,
@@ -201,7 +200,7 @@ export class AlertsService {
       links: buildPaginationLinks('/alerts', page, size, 0, filters),
     });
 
-    if (!isUuid(caller.id)) {
+    if (caregiverId !== undefined && !isUuid(caregiverId)) {
       return emptyPage();
     }
 
@@ -210,19 +209,27 @@ export class AlertsService {
       return emptyPage();
     }
 
-    const referenceDate = new Date();
-    const params: unknown[] = [caller.id, referenceDate];
-    const conditions: string[] = [
-      'su.id_soignant = $1',
-      `EXISTS (
-        SELECT 1
-        FROM public.consentement c
-        WHERE c.id_patient = p.id_patient
-          AND c.id_soignant = $1
-          AND (c.date_debut IS NULL OR c.date_debut <= $2)
-          AND (c.date_fin IS NULL OR c.date_fin > $2)
-      )`,
-    ];
+    const params: unknown[] = [];
+    const conditions: string[] = [];
+    let caregiverJoin = '';
+
+    if (caregiverId !== undefined) {
+      const referenceDate = new Date();
+      params.push(caregiverId, referenceDate);
+      caregiverJoin =
+        'INNER JOIN public.suivre su ON su.id_patient = p.id_patient';
+      conditions.push(
+        'su.id_soignant = $1',
+        `EXISTS (
+          SELECT 1
+          FROM public.consentement c
+          WHERE c.id_patient = p.id_patient
+            AND c.id_soignant = $1
+            AND (c.date_debut IS NULL OR c.date_debut <= $2)
+            AND (c.date_fin IS NULL OR c.date_fin > $2)
+        )`,
+      );
+    }
 
     if (query.patientId) {
       params.push(query.patientId);
@@ -244,14 +251,15 @@ export class AlertsService {
       conditions.push(`a.horodatage <= $${params.length}`);
     }
 
-    const whereClause = conditions.join(' AND ');
+    const whereClause =
+      conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
     const baseFrom = `
       FROM public.alerte a
       INNER JOIN public.mesure m ON m.id_mesure = a.id_mesure
       INNER JOIN public.seuil s ON s.id_seuil = a.id_seuil
       INNER JOIN public.patient p ON p.id_patient = m.id_patient
-      INNER JOIN public.suivre su ON su.id_patient = p.id_patient
-      WHERE ${whereClause}
+      ${caregiverJoin}
+      ${whereClause}
     `;
 
     const countRows: Array<{ total: string | number }> =
@@ -307,43 +315,67 @@ export class AlertsService {
 
   async getAlertDetail(
     alertId: string,
-    caller: AuthenticatedCaller,
+    caregiverId?: string,
   ): Promise<AlertDetailDto> {
-    if (!isUuid(alertId) || !isUuid(caller.id)) {
+    if (
+      !isUuid(alertId) ||
+      (caregiverId !== undefined && !isUuid(caregiverId))
+    ) {
       throw new NotFoundException('Alerte introuvable.');
     }
 
-    const referenceDate = new Date();
-    const rows: AlertDetailRow[] = await this.dataSource.query(
-      `
-        SELECT
-          a.id_alerte,
-          m.id_patient,
-          s.type_mesure,
-          m.frequence_cardiaque,
-          m.spo2,
-          m.pas,
-          a.valeur_seuil,
-          a.statut,
-          a.horodatage
-        FROM public.alerte a
-        INNER JOIN public.mesure m ON m.id_mesure = a.id_mesure
-        INNER JOIN public.seuil s ON s.id_seuil = a.id_seuil
-        INNER JOIN public.suivre su ON su.id_patient = m.id_patient
-        WHERE a.id_alerte = $1
-          AND su.id_soignant = $2
-          AND EXISTS (
-            SELECT 1
-            FROM public.consentement c
-            WHERE c.id_patient = m.id_patient
-              AND c.id_soignant = $2
-              AND (c.date_debut IS NULL OR c.date_debut <= $3)
-              AND (c.date_fin IS NULL OR c.date_fin > $3)
+    const rows =
+      caregiverId !== undefined
+        ? await this.dataSource.query<AlertDetailRow[]>(
+            `
+              SELECT
+                a.id_alerte,
+                m.id_patient,
+                s.type_mesure,
+                m.frequence_cardiaque,
+                m.spo2,
+                m.pas,
+                a.valeur_seuil,
+                a.statut,
+                a.horodatage
+              FROM public.alerte a
+              INNER JOIN public.mesure m ON m.id_mesure = a.id_mesure
+              INNER JOIN public.seuil s ON s.id_seuil = a.id_seuil
+              INNER JOIN public.suivre su ON su.id_patient = m.id_patient
+              WHERE a.id_alerte = $1
+                AND su.id_soignant = $2
+                AND EXISTS (
+                  SELECT 1
+                  FROM public.consentement c
+                  WHERE c.id_patient = m.id_patient
+                    AND c.id_soignant = $2
+                    AND (c.date_debut IS NULL OR c.date_debut <= $3)
+                    AND (c.date_fin IS NULL OR c.date_fin > $3)
+                )
+              LIMIT 1
+            `,
+            [alertId, caregiverId, new Date()],
           )
-        LIMIT 1
-      `,
-      [alertId, caller.id, referenceDate],
-    );
+        : await this.dataSource.query<AlertDetailRow[]>(
+            `
+              SELECT
+                a.id_alerte,
+                m.id_patient,
+                s.type_mesure,
+                m.frequence_cardiaque,
+                m.spo2,
+                m.pas,
+                a.valeur_seuil,
+                a.statut,
+                a.horodatage
+              FROM public.alerte a
+              INNER JOIN public.mesure m ON m.id_mesure = a.id_mesure
+              INNER JOIN public.seuil s ON s.id_seuil = a.id_seuil
+              WHERE a.id_alerte = $1
+              LIMIT 1
+            `,
+            [alertId],
+          );
 
     const row = rows[0];
     if (!row) {
@@ -356,45 +388,68 @@ export class AlertsService {
   async acknowledgeAlert(
     alertId: string,
     dto: AlertUpdateDto,
-    caller: AuthenticatedCaller,
+    caregiverId?: string,
   ): Promise<AlertDetailDto> {
-    if (!isUuid(alertId) || !isUuid(caller.id)) {
+    if (
+      !isUuid(alertId) ||
+      (caregiverId !== undefined && !isUuid(caregiverId))
+    ) {
       throw new NotFoundException('Alerte introuvable.');
     }
 
-    const referenceDate = new Date();
-
     return this.dataSource.transaction(async (manager) => {
-      const rows: AlertDetailRow[] = await manager.query(
-        `
-          SELECT
-            a.id_alerte,
-            m.id_patient,
-            s.type_mesure,
-            m.frequence_cardiaque,
-            m.spo2,
-            m.pas,
-            a.valeur_seuil,
-            a.statut,
-            a.horodatage
-          FROM public.alerte a
-          INNER JOIN public.mesure m ON m.id_mesure = a.id_mesure
-          INNER JOIN public.seuil s ON s.id_seuil = a.id_seuil
-          INNER JOIN public.suivre su ON su.id_patient = m.id_patient
-          WHERE a.id_alerte = $1
-            AND su.id_soignant = $2
-            AND EXISTS (
-              SELECT 1
-              FROM public.consentement c
-              WHERE c.id_patient = m.id_patient
-                AND c.id_soignant = $2
-                AND (c.date_debut IS NULL OR c.date_debut <= $3)
-                AND (c.date_fin IS NULL OR c.date_fin > $3)
+      const rows =
+        caregiverId !== undefined
+          ? await manager.query<AlertDetailRow[]>(
+              `
+                SELECT
+                  a.id_alerte,
+                  m.id_patient,
+                  s.type_mesure,
+                  m.frequence_cardiaque,
+                  m.spo2,
+                  m.pas,
+                  a.valeur_seuil,
+                  a.statut,
+                  a.horodatage
+                FROM public.alerte a
+                INNER JOIN public.mesure m ON m.id_mesure = a.id_mesure
+                INNER JOIN public.seuil s ON s.id_seuil = a.id_seuil
+                INNER JOIN public.suivre su ON su.id_patient = m.id_patient
+                WHERE a.id_alerte = $1
+                  AND su.id_soignant = $2
+                  AND EXISTS (
+                    SELECT 1
+                    FROM public.consentement c
+                    WHERE c.id_patient = m.id_patient
+                      AND c.id_soignant = $2
+                      AND (c.date_debut IS NULL OR c.date_debut <= $3)
+                      AND (c.date_fin IS NULL OR c.date_fin > $3)
+                  )
+                FOR UPDATE OF a
+              `,
+              [alertId, caregiverId, new Date()],
             )
-          FOR UPDATE OF a
-        `,
-        [alertId, caller.id, referenceDate],
-      );
+          : await manager.query<AlertDetailRow[]>(
+              `
+                SELECT
+                  a.id_alerte,
+                  m.id_patient,
+                  s.type_mesure,
+                  m.frequence_cardiaque,
+                  m.spo2,
+                  m.pas,
+                  a.valeur_seuil,
+                  a.statut,
+                  a.horodatage
+                FROM public.alerte a
+                INNER JOIN public.mesure m ON m.id_mesure = a.id_mesure
+                INNER JOIN public.seuil s ON s.id_seuil = a.id_seuil
+                WHERE a.id_alerte = $1
+                FOR UPDATE OF a
+              `,
+              [alertId],
+            );
 
       const row = rows[0];
       if (!row) {

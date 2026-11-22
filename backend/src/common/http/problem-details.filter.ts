@@ -21,23 +21,15 @@ const PROBLEM_TYPE_BASE = 'https://veillo.local/errors';
 
 const PROBLEM_TYPES: Record<number, string> = {
   [HttpStatus.BAD_REQUEST]: `${PROBLEM_TYPE_BASE}/validation`,
-  [HttpStatus.UNAUTHORIZED]: `${PROBLEM_TYPE_BASE}/unauthorized`,
-  [HttpStatus.FORBIDDEN]: `${PROBLEM_TYPE_BASE}/forbidden`,
   [HttpStatus.NOT_FOUND]: `${PROBLEM_TYPE_BASE}/not-found`,
   [HttpStatus.CONFLICT]: `${PROBLEM_TYPE_BASE}/conflict`,
-  [HttpStatus.PRECONDITION_FAILED]: `${PROBLEM_TYPE_BASE}/precondition-failed`,
-  [HttpStatus.PRECONDITION_REQUIRED]: `${PROBLEM_TYPE_BASE}/precondition-required`,
   [HttpStatus.INTERNAL_SERVER_ERROR]: `${PROBLEM_TYPE_BASE}/internal-error`,
 };
 
 const DEFAULT_TITLES: Record<number, string> = {
   [HttpStatus.BAD_REQUEST]: 'Données invalides',
-  [HttpStatus.UNAUTHORIZED]: 'Authentification invalide',
-  [HttpStatus.FORBIDDEN]: 'Accès refusé',
   [HttpStatus.NOT_FOUND]: 'Ressource introuvable',
   [HttpStatus.CONFLICT]: 'Conflit métier',
-  [HttpStatus.PRECONDITION_FAILED]: 'Précondition non satisfaite',
-  [HttpStatus.PRECONDITION_REQUIRED]: 'Précondition requise',
   [HttpStatus.INTERNAL_SERVER_ERROR]: 'Erreur interne du serveur',
 };
 
@@ -96,10 +88,6 @@ export class ProblemDetailsFilter implements ExceptionFilter {
         errorStack,
       );
       detail = 'Une erreur interne est survenue.';
-    }
-
-    if (status === HttpStatus.UNAUTHORIZED) {
-      response.setHeader('WWW-Authenticate', 'Bearer');
     }
 
     const problem: ProblemDetails = {

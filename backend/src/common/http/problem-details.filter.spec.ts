@@ -3,7 +3,7 @@ import {
   BadRequestException,
   ConflictException,
   Logger,
-  UnauthorizedException,
+  NotFoundException,
 } from '@nestjs/common';
 import { ProblemDetailsFilter } from './problem-details.filter';
 
@@ -53,24 +53,20 @@ describe('ProblemDetailsFilter', () => {
     });
   });
 
-  it('ajoute WWW-Authenticate: Bearer et une URI type stable sur 401', () => {
+  it('formate une ressource introuvable 404 en RFC 9457', () => {
     const filter = new ProblemDetailsFilter();
-    const { host, response } = createHost('/alerts');
+    const { host, response } = createHost('/alerts/unknown');
 
-    filter.catch(new UnauthorizedException('Jeton absent.'), host);
+    filter.catch(new NotFoundException('Alerte introuvable.'), host);
 
-    expect(response.setHeader).toHaveBeenCalledWith(
-      'WWW-Authenticate',
-      'Bearer',
-    );
-    expect(response.status).toHaveBeenCalledWith(401);
+    expect(response.status).toHaveBeenCalledWith(404);
     expect(response.type).toHaveBeenCalledWith('application/problem+json');
     expect(response.json).toHaveBeenCalledWith({
-      type: 'https://veillo.local/errors/unauthorized',
-      title: 'Authentification invalide',
-      status: 401,
-      detail: 'Jeton absent.',
-      instance: '/alerts',
+      type: 'https://veillo.local/errors/not-found',
+      title: 'Ressource introuvable',
+      status: 404,
+      detail: 'Alerte introuvable.',
+      instance: '/alerts/unknown',
     });
   });
 
