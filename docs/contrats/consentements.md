@@ -1,29 +1,37 @@
 # Contrats API — Consentements
 
-Le patient authentifié consulte et retire ses propres consentements, avec le scope patient. `me` désigne l’identité de son jeton ; aucun `patientId` n’est fourni dans l’URL. Ce contrat reste à implémenter.
+Un consentement représente l’accord d’un patient pour l’accès d’un soignant à ses données. Le patient peut consulter ses accords et en retirer un pour bloquer les accès futurs concernés.
 
-Sources : [opérations consentements](../../openapi/paths/consents.yaml) et schéma `ConsentList` dans [schemas.yaml](../../openapi/components/schemas.yaml). Les erreurs utilisent `application/problem+json`.
+Les routes restent à implémenter. Sources : [opérations consentements](../../openapi/paths/consents.yaml), schéma `ConsentList` dans [schemas.yaml](../../openapi/components/schemas.yaml) et [modèle métier](../design.md#consentements).
+
+## Qui peut agir ?
+
+Le patient doit être authentifié avec le scope patient. Dans l’URL, `me` désigne le patient identifié par son jeton : aucun `patientId` n’est transmis.
+
+La liste ne contient jamais les consentements d’un autre patient. Un retrait sur un consentement d’autrui donne `404`, comme pour un identifiant inexistant.
 
 ## Consulter ses consentements
 
-`GET /patients/me/consents` renvoie les consentements du patient connecté : identifiant, soignant concerné, dates de début et de fin, état. Aucun paramètre.
+`GET /patients/me/consents` ne reçoit aucun paramètre ni corps de requête.
 
 ```http
 GET /patients/me/consents HTTP/1.1
 Authorization: Bearer <jeton>
 ```
 
-Le format de la liste, les noms des champs, les valeurs de l’état et la nullabilité de la date de fin restent à définir.
+Les informations attendues sont l’identifiant du consentement, le soignant concerné, les dates de début et de fin, et l’état.
 
-- `200` : consentements récupérés.
+**Le JSON reste ouvert.** Le format de liste, les noms des champs, les valeurs de l’état, la présence et la nullabilité de la date de fin ne sont pas validés. Aucun exemple de réponse n’est donc imposé.
+
+**Réponses prévues**
+
+- `200` : consentements récupérés en `application/json`.
 - `401` : authentification absente ou invalide.
-- `403` : scope patient manquant (par exemple jeton de soignant ou de montre).
-
-La liste ne contient jamais les consentements d’un autre patient.
+- `403` : rôle ou scope patient insuffisant, par exemple avec un jeton de montre ou de soignant.
 
 ## Retirer un consentement
 
-`DELETE /patients/me/consents/{consentId}` retire un consentement donné précédemment. Pas de corps de requête.
+`DELETE /patients/me/consents/{consentId}` reçoit l’identifiant dans le chemin, sans corps de requête.
 
 ```http
 DELETE /patients/me/consents/consent-001 HTTP/1.1
@@ -35,23 +43,24 @@ HTTP/1.1 204 No Content
 ```
 
 ```text
-retrait ──► accès futurs du soignant concerné bloqués
-        └─► consentement, trace du retrait et historique des données conservés
+retrait → accès futurs concernés bloqués
+        → consentement, trace du retrait et historique des données conservés
 ```
 
-Le retrait bloque les accès concernés sans supprimer le consentement ni les données. Il ne définit pas un historique complet des renouvellements et retraits successifs.
+Retirer un accord ne supprime ni le consentement ni les mesures. Cette conservation ne définit pas un historique complet des renouvellements et retraits successifs.
+
+**Réponses prévues**
 
 - `204` : retrait enregistré, sans corps.
 - `401` : authentification absente ou invalide.
-- `403` : scope patient manquant.
-- `404` : consentement inexistant **ou** appartenant à un autre patient, sans distinction.
+- `403` : rôle ou scope patient insuffisant.
+- `404` : consentement inexistant ou appartenant à un autre patient, sans distinction.
+
+Les erreurs utilisent `application/problem+json` ; voir la [revue HTTP](../api-review.md).
 
 ## Points à valider
 
-**[À VALIDER]**
-
-- Réponse à un retrait déjà effectué : aucun code supplémentaire retenu.
-- Types d’identifiants, JSON de consultation, état et conditions de validité des dates.
-- Lien entre identité OAuth et patient : voir la [sécurité](../../openapi/components/security.yaml).
-
-Le MCD relie chaque consentement à un patient et un soignant ; les dates et les renouvellements restent à préciser dans la [conception](../design.md#consentements).
+- Comportement d’un retrait répété : aucun code supplémentaire n’est retenu.
+- JSON de consultation, types d’identifiants et valeurs de l’état.
+- Conditions de validité des dates et renouvellement d’un consentement.
+- Lien entre identité OAuth et patient, selon la [définition de sécurité](../../openapi/components/security.yaml).
