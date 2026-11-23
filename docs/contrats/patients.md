@@ -1,53 +1,64 @@
 # Contrats API — Patients
 
-Le soignant consulte uniquement **les patients qu’il suit**, avec le scope soignant. Un patient non suivi est traité comme inexistant. Ce contrat reste à implémenter.
+Le soignant retrouve les patients qu’il suit et consulte leurs informations. L’association `SUIVRE` définit ce périmètre ; être authentifié ne donne pas accès à tous les patients.
 
-Sources : [opérations patients](../../openapi/paths/patients.yaml) et schémas `Patient` et `PatientPage` dans [schemas.yaml](../../openapi/components/schemas.yaml). Les succès utilisent `application/json` et les erreurs `application/problem+json`.
+Les routes restent à implémenter. Sources : [opérations patients](../../openapi/paths/patients.yaml), schémas `Patient` et `PatientPage` dans [schemas.yaml](../../openapi/components/schemas.yaml).
+
+## Accès et format des échanges
+
+Le scope soignant est requis. Un scope est une permission portée par le jeton ; il ne remplace pas le contrôle du suivi.
+
+Les succès utilisent `application/json`. Les erreurs suivent `application/problem+json`, le format structuré [Problem Details](../api-review.md#règles-http-communes).
+
+```text
+soignant authentifié → scope soignant → patients liés par SUIVRE
+```
+
+Le contrôle du consentement reste ouvert pour ces deux lectures. Ce point doit être harmonisé avec l’exigence du sujet, sans en déduire un droit d’accès sans consentement.
 
 ## Lister ses patients
 
-`GET /patients` renvoie les patients suivis par le soignant connecté : identifiant, nom, prénom et date de naissance, avec la pagination.
+`GET /patients` renvoie les patients suivis : identifiant, nom, prénom, date de naissance et pagination.
 
 ```http
 GET /patients?page=0&size=50 HTTP/1.1
 Authorization: Bearer <jeton>
 ```
 
-`page` commence à `0` (défaut `0`) et `size` vaut `50` par défaut, maximum `100`. L’enveloppe de la réponse et le nom des champs JSON restent à définir.
+- `page` : entier à partir de `0`, défaut `0`.
+- `size` : entier, défaut `50`, maximum `100`.
 
-```text
-soignant connecté ──► SUIVRE ──► ses patients seulement
-```
+La collection ne contient jamais un patient non suivi. L’enveloppe de réponse et les noms des champs JSON ne sont pas encore définis : aucun exemple de réponse n’est imposé.
 
-La collection ne contient jamais un patient non suivi.
+**Réponses prévues**
 
 - `200` : liste paginée récupérée.
 - `400` : pagination invalide.
 - `401` : authentification absente ou invalide.
-- `403` : scope soignant manquant.
+- `403` : rôle ou scope soignant insuffisant.
 
 ## Lire un patient
 
-`GET /patients/{patientId}` renvoie le patient (identifiant, nom, prénom, date de naissance).
+`GET /patients/{patientId}` reçoit l’identifiant dans le chemin et renvoie les informations du patient suivi.
 
 ```http
 GET /patients/patient-001 HTTP/1.1
 Authorization: Bearer <jeton>
 ```
 
-Les noms et types JSON restent à définir ; aucun exemple n’est imposé.
+La réponse contient les mêmes informations d’identité que la liste. Les noms et types JSON restent à définir ; `patient-001` est un identifiant illustratif.
+
+**Réponses prévues**
 
 - `200` : informations récupérées.
 - `401` : authentification absente ou invalide.
-- `403` : scope soignant manquant.
-- `404` : patient inexistant ou non suivi par le soignant.
+- `403` : rôle ou scope soignant insuffisant.
+- `404` : patient inexistant ou non suivi, sans distinguer les cas.
 
 ## Points à valider
 
-**[À VALIDER]**
+- **Consentement :** périmètre des deux lectures. S’il est exigé, son absence donne `404` en accès direct ou exclut le patient de la liste.
+- **JSON :** structure de `Patient` et de `PatientPage`, noms des champs et types d’identifiants.
+- **Sécurité :** modalités [OAuth/JWT](../../openapi/components/security.yaml).
 
-- Contrôle du consentement pour les deux lectures : le contrat le laisse ouvert ; s’il est retenu, son absence donne `404` ou exclut le patient de la liste.
-- Types d’identifiants et réponses JSON.
-- Modalités [OAuth/JWT](../../openapi/components/security.yaml).
-
-Le contrôle du consentement reste à harmoniser avec l’exigence du sujet : voir le [point à arbitrer](../design.md#périmètre-du-contrôle-du-consentement).
+L’écart sur le consentement est détaillé dans la [conception](../design.md#périmètre-du-contrôle-du-consentement).
