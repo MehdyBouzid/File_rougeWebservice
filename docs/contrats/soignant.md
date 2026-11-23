@@ -1,43 +1,42 @@
 # Soignant — Décision V1
 
-Le soignant suit des patients et intervient dans leurs consentements et alertes. En V1, il est une entité métier et un appelant authentifié, **sans endpoint dédié**.
+Le soignant est une entité du modèle métier et un appelant authentifié. En V1, aucun besoin ne justifie d’exposer son profil : **pas de JSON, de schéma OpenAPI ni d’endpoint Soignant dédié**.
 
-## Rôle dans le modèle
+## Son rôle dans Veillo
 
-L’entité `SOIGNANT` est reliée au reste par trois associations du [MCD](../design.md#4-modélisation-des-données) :
+Trois associations du [MCD](../design.md#4-modélisation-des-données) expliquent sa présence :
+
+- `SUIVRE` relie les soignants aux patients suivis.
+- `CONCERNER` rattache un consentement à un soignant ; `DONNER` le rattache au patient.
+- `RECEVOIR` relie les alertes à leurs destinataires. Leur sélection reste à préciser.
+
+Les [routes actuelles](../api.md) servent à consulter ou gérer les données des patients concernés. Elles peuvent référencer l’identifiant du soignant sans exposer son profil ni toutes ses relations.
+
+## Ce que le backend doit vérifier
+
+Même sans endpoint dédié, chaque accès concerné doit identifier le soignant et vérifier ses droits :
 
 ```text
-SOIGNANT ──SUIVRE────► PATIENT        patients suivis
-SOIGNANT ◄─CONCERNER── CONSENTEMENT   (DONNER le rattache au patient)
-SOIGNANT ◄─RECEVOIR──► ALERTE         destinataires, sélection à préciser
+jeton absent ou invalide → 401
+rôle ou scope insuffisant → 403
+patient inexistant ou non suivi → 404
+consentement requis mais absent ou retiré → 404
 ```
 
-## Décision V1
+Le consentement est explicitement requis pour les mesures et le détail d’une alerte. Son périmètre reste à harmoniser sur les autres opérations : voir la [revue HTTP](../api-review.md) et la [décision ouverte](../design.md#périmètre-du-contrôle-du-consentement).
 
-Les [opérations actuelles](../api.md) couvrent l’accès aux données des patients suivis. Aucun besoin d’afficher les profils Soignant n’est défini : pas de JSON, schéma OpenAPI ou route dédiée. Les échanges peuvent simplement référencer son identifiant.
+Le lien entre l’identité OAuth et `SOIGNANT` reste à définir. La sécurité métier n’est pas implémentée.
 
-## Conséquences pour le backend
+## Si un profil devient nécessaire
 
-Même sans endpoint dédié, le backend devra :
-
-- identifier le soignant et vérifier son jeton JWT et son scope soignant (`403` si le scope est insuffisant) ;
-- vérifier qu’il suit le patient concerné (`404` si le patient est inexistant ou non suivi par le soignant) ;
-- exiger un consentement valide pour consulter les mesures et le détail d’une alerte ; son absence ou son retrait place l’objet hors du périmètre (`404`).
-
-Le consentement reste à harmoniser sur les autres opérations : voir la [revue HTTP](../api-review.md) et le [point à arbitrer](../design.md#périmètre-du-contrôle-du-consentement). Le lien OAuth–`SOIGNANT` reste à définir ; la sécurité métier n’est pas implémentée.
-
-## Évolution possible : afficher le soignant d'un patient
-
-Si l'application mobile doit afficher l'identité du soignant qui suit un patient, un contrat JSON dédié pourra être ajouté.
-
-**Exemple illustratif de réponse JSON, à valider :**
+Un contrat pourra être ajouté si une fonctionnalité validée doit afficher l’identité d’un soignant. Cet exemple reste une **proposition**, sans route associée :
 
 ```json
 {
-"id": "7e9f0a21-8c34-4d65-9a72-5b2f6e810c43",
-"nom": "Martin",
-"prenom": "Sophie"
+  "id": "7e9f0a21-8c34-4d65-9a72-5b2f6e810c43",
+  "nom": "Martin",
+  "prenom": "Sophie"
 }
 ```
 
-`id` identifie le soignant ; `nom` et `prenom` affichent son identité. Cet exemple reste une proposition : aucun profil ni nouvelle route n’est à développer sans besoin validé. Limiter alors la réponse aux données utiles.
+`id` identifierait le soignant ; `nom` et `prenom` permettraient de l’afficher. Le nom et le format de l’identifiant ne sont pas décidés. Ne renvoyer que les données nécessaires au besoin retenu.
