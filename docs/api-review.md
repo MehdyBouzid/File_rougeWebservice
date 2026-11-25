@@ -5,8 +5,8 @@ Ce document explique quand renvoyer chaque statut HTTP. Les traitements sont dan
 ## Règles HTTP communes
 
 - `401` : authentification absente ou invalide. L’en-tête `WWW-Authenticate` est obligatoire pour les 13 opérations ; le composant partagé fournit un exemple `Bearer`. Les paramètres du challenge restent à préciser avec OAuth.
-- `403` : appelant authentifié dont le rôle ou le scope est insuffisant pour l’opération (BFLA). Les trois types de clients (montre, patient, soignant) ont des scopes distincts. Ce code ne traduit jamais l’appartenance d’un objet.
-- `404` : objet inexistant **ou hors du périmètre autorisé de l’appelant** (BOLA), en lecture comme en écriture : patient non suivi, seuil rattaché à un autre patient, consentement d’un autre patient, consentement valide exigé mais absent ou retiré. Les cas ne sont pas distinguables dans la réponse.
+- `403` : rôle ou scope insuffisant pour l’opération, malgré une authentification valide. C’est le contrôle au niveau fonction (BFLA). Les clients montre, patient et soignant ont des scopes distincts ; ce code ne traduit jamais l’appartenance d’un objet.
+- `404` : objet inexistant **ou hors du périmètre autorisé**, en lecture comme en écriture. C’est le contrôle au niveau objet (BOLA) : patient non suivi, seuil d’un autre patient, consentement d’autrui ou consentement valide exigé mais absent. Les cas ne sont pas distinguables ; un consentement retiré n’est plus valide.
 - Collections (`GET /patients`, `GET /alerts`) : elles ne retournent que les objets accessibles, quels que soient les filtres. Un filtre sur un patient inexistant ou non accessible donne une liste vide en `200`, jamais `403` ni `404`.
 - Consentement : vérifié à chaque accès concerné. Son périmètre exact reste à valider par opération (voir [design.md](design.md#périmètre-du-contrôle-du-consentement)) ; là où il est exigé, son absence ou son retrait renvoie `404` (ou exclut l’objet d’une collection).
 - `400` concerne les données ou paramètres invalides ; `409` concerne les conflits documentés : lot déjà reçu, seuil actif existant ou état d’alerte incompatible. Les cas encore ambigus sont signalés ci-dessous.
@@ -21,7 +21,7 @@ Références : [RFC 9110 — challenge d’authentification](https://www.rfc-edi
 
 Les réponses techniques suivantes ne sont pas encore déclarées par opération dans OpenAPI ; leur ajout reste à valider : `405` avec `Allow` pour une méthode non autorisée sur une ressource existante, `415` pour un média de requête refusé et `500` pour une erreur interne imprévue, sans détail sensible.
 
-`422` n’est pas nécessaire pour remplacer les validations actuellement décrites avec `400`. `304`, `412` et `428` sont déclarés uniquement pour les seuils (ETag, `If-None-Match`, `If-Match`), selon les exigences du formateur ; voir le [guide des seuils](contrats/seuils.md#requêtes-conditionnelles-etag). `429` dépendrait d’une limitation de débit, non décidée.
+`422` n’est pas nécessaire pour remplacer les validations actuellement décrites avec `400`. `304`, `412` et `428` sont déclarés uniquement pour les seuils (ETag, `If-None-Match`, `If-Match`), selon les exigences du formateur ; voir le [guide des seuils](../openapi/thresholds/guide.md#requêtes-conditionnelles-etag). `429` dépendrait d’une limitation de débit, non décidée.
 
 ## Contrat, mock et backend
 
@@ -55,7 +55,7 @@ Enregistrer les mesures envoyées par les montres connectées pour assurer le su
 - Tout `batchId` déjà reçu donne `409`, même contenu identique. Un identifiant nouveau permet de poursuivre.
 - `patientId`, `batchId`, `measurements` non vide et les quatre champs du relevé sont obligatoires ; `pas` est un delta. Voir le [JSON d’ingestion](api.md#1-ingestion-des-mesures).
 - Identification de l’émetteur, rattachement au patient, stockage, types d’identifiants, unités et bornes restent ouverts.
-- Corps du `201` et URI de `Location` restent à définir dans le [guide des mesures](contrats/mesures.md#4-réponses-http-prévues).
+- Corps du `201` et URI de `Location` restent à définir dans le [guide des mesures](../openapi/measurements/guide.md#4-réponses-http-prévues).
 
 ---
 
@@ -317,7 +317,7 @@ Créer un seuil définissant les limites qui déclenchent des alertes pour les m
 
 - Un seul seuil actif par patient et type ; conflit existant → `409`.
 - Création active automatiquement, avec `typeMesure`, `valeurMin`, `valeurMax` obligatoires. Enum commune aux alertes : `FREQUENCE_CARDIAQUE`, `SPO2`, `PAS`.
-- Le backend vérifie `valeurMin <= valeurMax`, égalité autorisée. Voir le [JSON de création](contrats/seuils.md#créer-un-seuil).
+- Le backend vérifie `valeurMin <= valeurMax`, égalité autorisée. Voir le [JSON de création](../openapi/thresholds/guide.md#créer-un-seuil).
 
 ---
 
@@ -351,4 +351,4 @@ Adapter les valeurs d’un seuil ou l’activer ou le désactiver pour ajuster l
 - La désactivation conserve le seuil dans l’historique.
 - Un seuil appartenant à un autre patient renvoie `404`, comme un seuil inexistant.
 - Le consentement reste à valider pour les seuils ; s’il est retenu, son absence renvoie `404`.
-- Vérification ETag et écriture sont prévues dans une transaction (`FOR UPDATE`) ; un index unique partiel protège l’unicité. Mécanisme non implémenté : voir le [guide des seuils](contrats/seuils.md#requêtes-conditionnelles-etag).
+- Vérification ETag et écriture sont prévues dans une transaction (`FOR UPDATE`), encore à implémenter. L’index unique partiel est défini dans la migration ; voir le [guide des seuils](../openapi/thresholds/guide.md#requêtes-conditionnelles-etag).

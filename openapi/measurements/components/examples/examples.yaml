@@ -1,0 +1,9 @@
+ingestMeasurementsRequest:
+  value:
+    patientId: patient-001
+    batchId: lot-001
+    measurements:
+      - horodatage: 2026-11-19T10:00:00Z
+        frequenceCardiaque: 75
+        spo2: 98
+        pas: 120

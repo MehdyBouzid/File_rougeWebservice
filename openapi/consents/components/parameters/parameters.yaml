@@ -1,0 +1,8 @@
+consentId:
+  name: consentId
+  in: path
+  required: true
+  description: Identifiant de la ressource demandée.
+  schema:
+    $ref: ../../../common/components/schemas/schemas.yaml#/Identifier
+  example: "3"

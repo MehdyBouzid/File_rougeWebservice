@@ -1,0 +1,26 @@
+createPatientThresholdRequest:
+  value:
+    typeMesure: FREQUENCE_CARDIAQUE
+    valeurMin: 60
+    valeurMax: 100
+createPatientThreshold201:
+  value:
+    seuilId: seuil-001
+    patientId: patient-001
+    typeMesure: FREQUENCE_CARDIAQUE
+    valeurMin: 60
+    valeurMax: 100
+    actif: true
+updatePatientThresholdRequest:
+  value:
+    valeurMin: 55
+    valeurMax: 110
+    actif: true
+updatePatientThreshold200:
+  value:
+    seuilId: seuil-001
+    patientId: patient-001
+    typeMesure: FREQUENCE_CARDIAQUE
+    valeurMin: 55
+    valeurMax: 110
+    actif: true

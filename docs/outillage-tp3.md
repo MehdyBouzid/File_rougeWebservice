@@ -8,134 +8,36 @@ Ce guide explique où modifier le contrat de Veillo, puis comment le valider et 
 
 ## Architecture des contrats OpenAPI
 
-**OpenAPI 3.1 décrit les échanges HTTP attendus** : routes, paramètres, JSON, réponses et exigences d’accès. Il sert de contrat commun au backend, au simulateur et aux clients.
-
-Le découpage sépare les opérations métier des définitions partagées. Chacun peut travailler dans son domaine sans recopier les schémas ou les erreurs communes.
-
-```mermaid
-flowchart TD
-    P["openapi.yaml<br/>point d’entrée"] -->|"$ref"| O["paths/<br/>opérations métier"]
-    P -->|"$ref"| C["components/<br/>définitions réutilisables"]
-    O -->|"$ref"| C
-    P -.-> R["Redocly<br/>génération"]
-    R -.-> B["openapi.bundle.yaml<br/>sortie générée"]
-```
-
-Traits pleins : références entre sources. Pointillés : génération du contrat regroupé.
-
-### 1. Le fichier parent : `openapi.yaml`
-
-[openapi.yaml](../openapi/openapi.yaml) est le point d’entrée. Il contient les informations générales, les serveurs, les URI, la sécurité commune et les références vers les fichiers enfants.
-
-Commencer par ce fichier pour retrouver une route. Redocly et Prism l’utilisent pour charger tout le contrat.
-
-### 2. Les opérations métier : `paths/`
-
-Chaque fichier de [paths/](../openapi/paths/) décrit les méthodes HTTP, paramètres, corps de requête et réponses de son domaine.
+**OpenAPI 3.1 décrit les échanges HTTP attendus** : routes, paramètres, JSON, réponses et exigences d’accès. Le contrat commun est maintenant organisé par ressource métier.
 
 ```text
-openapi/paths/
-├── patients.yaml       # Liste et détail des patients suivis
-├── measurements.yaml   # Ingestion des lots et consultation
-├── alerts.yaml         # Liste, détail et acquittement
-├── consents.yaml       # Consultation et retrait
-└── seuils.yaml         # Liste, détail, création et modification
+openapi.yaml → ressource/paths/ → ressource/components/
+                                       ↓
+                              common/ · security/ · cache/
 ```
 
-Modifier ici le comportement HTTP d’une opération. Le parent relie l’URI à un bloc comme `ingestion`, `patientMeasurements`, `collection` ou `item` : ces noms sont des clés YAML, pas de nouvelles routes.
+- **[openapi.yaml](../openapi/openapi.yaml)** : point d’entrée, informations générales et références.
+- **Dossiers métier** : opérations, composants propres à la ressource et `guide.md`. Par exemple, [measurements/](../openapi/measurements/) rassemble le contrat d’ingestion.
+- **[common/](../openapi/common/components/)** : identifiants, types de mesure, pagination et erreurs réellement partagés.
+- **[security/](../openapi/security/components/)** : mécanisme Bearer/JWT. Les permissions provisoires restent dans les opérations.
+- **[cache/](../openapi/cache/)** : ETag, préconditions et réponses conditionnelles des seuils.
+- **[openapi.bundle.yaml](../openapi/openapi.bundle.yaml)** : contrat regroupé, généré par Redocly. Ne pas le modifier à la main.
 
-### 3. Les définitions réutilisables : `components/`
+L’[architecture détaillée](../openapi/architecture-api.md) présente les dossiers, les références `$ref`, un parcours `POST /measurements` et les correspondances avec NestJS.
 
-[components/](../openapi/components/) contient les définitions partagées par les opérations.
+**Quel fichier modifier ?** Une opération dans le `paths/` de sa ressource ; un JSON dans `components/schemas/` ; une réponse ou un exemple dans son sous-dossier. Les éléments communs restent dans les dossiers transversaux.
 
 ```text
-openapi/components/
-├── schemas.yaml       # Structures JSON, types et contraintes
-├── responses.yaml     # Réponses d’erreur partagées
-├── parameters.yaml    # Identifiants, filtres et pagination
-├── examples.yaml      # Exemples fictifs d’erreurs communes
-├── security.yaml      # Authentification Bearer/JWT
-└── cache.yaml         # En-têtes et réponses conditionnelles
+modifier les sources → régénérer le bundle → valider → tester
 ```
 
-Modifier une définition commune affecte les opérations qui la référencent. Par exemple, les règles de `ThresholdPatch` restent dans `schemas.yaml` ; `ETag`, `If-Match`, `If-None-Match` et les réponses `304`, `412`, `428` sont centralisés dans `cache.yaml`.
+Avec la configuration actuelle, **Spectral utilise le bundle** pour éviter le rejet des références de chemins du parent. **Prism charge directement le parent** et ses références.
 
-Pour les échanges HTTP et les règles associées, lire les guides [Seuils](contrats/seuils.md) et [Cache](contrats/cache.md).
+[.spectral.yaml](../openapi/.spectral.yaml) configure le lint : ce fichier ne fait pas partie du contrat HTTP.
 
-`security.yaml` décrit le mécanisme d’authentification. Le bloc `security` de chaque opération porte ses permissions provisoires. Fournisseur, flux OAuth et noms définitifs des scopes restent à valider.
+Les guides [Mesures](../openapi/measurements/guide.md), [Seuils](../openapi/thresholds/guide.md) et [Cache](../openapi/cache/guide.md) précisent les échanges. `patientId`, `batchId` et au moins un relevé sont obligatoires ; formats d’identifiants, unités, bornes et autorisations du simulateur restent ouverts.
 
-### 4. Le contrat généré : `openapi.bundle.yaml`
-
-[openapi.bundle.yaml](../openapi/openapi.bundle.yaml) regroupe le parent et les fichiers référencés. Redocly le génère : **ne jamais le modifier à la main**, car une nouvelle génération écraserait ces changements.
-
-Avec la configuration actuelle, Spectral utilise le bundle pour éviter le rejet des références de chemins du parent. Prism sait charger directement le parent et ses références.
-
-```text
-parent + paths + components → Redocly → bundle → Spectral
-parent + paths + components → Prism → requêtes Bruno
-```
-
-### Exemple : `POST /measurements` et les `$ref`
-
-Une `$ref` renvoie vers une définition existante. Elle évite de recopier les mêmes structures dans chaque opération.
-
-**Dans le parent**, la route charge le bloc `ingestion` de [measurements.yaml](../openapi/paths/measurements.yaml) :
-
-```yaml
-paths:
-  /measurements:
-    $ref: "./paths/measurements.yaml#/ingestion"
-```
-
-**Dans l’opération**, le corps utilise `MeasurementBatch` de [schemas.yaml](../openapi/components/schemas.yaml) :
-
-```yaml
-post:
-  requestBody:
-    required: true
-    content:
-      application/json:
-        schema:
-          $ref: "../components/schemas.yaml#/MeasurementBatch"
-```
-
-**Dans le schéma**, le tableau non vide réutilise `Measurement` du même fichier :
-
-```yaml
-measurements:
-  type: array
-  minItems: 1
-  items:
-    $ref: "#/Measurement"
-```
-
-`/measurements → ingestion.post → MeasurementBatch → Measurement`.
-
-Le chemin avant `#` part du **fichier qui contient la référence** : `./` reste dans son dossier et `../` remonte d’un niveau. Sans chemin, la référence reste dans le même fichier.
-
-Le fragment après `#` sélectionne une définition : `#/Measurement` vise cette clé ; `#/headers/ETag` descend dans `headers` puis `ETag`.
-
-Ces extraits sont partiels. Le POST réutilise aussi `responses.yaml#/Unauthorized` pour son `401`. Le [guide des mesures](contrats/mesures.md) donne le JSON retenu : `patientId`, `batchId` et au moins un relevé sont obligatoires. Formats d’identifiants, unités, bornes et autorisations du simulateur restent ouverts.
-
-### À part : `.spectral.yaml`
-
-[.spectral.yaml](../openapi/.spectral.yaml) configure le lint, c’est-à-dire les contrôles automatiques du contrat. Il ne décrit aucun échange HTTP et ne fait pas partie du bundle.
-
-Modifier ce fichier seulement pour faire évoluer les règles de vérification.
-
-### Quel fichier modifier ?
-
-- **Une opération :** son fichier dans `paths/`, par exemple `ingestion.post` dans `measurements.yaml`. Une URI nouvelle ou modifiée nécessite aussi une référence dans le parent, après validation de l’équipe.
-- **Une structure JSON :** son schéma dans [schemas.yaml](../openapi/components/schemas.yaml), par exemple `Measurement` ou `ThresholdCreate`.
-- **Une réponse d’erreur commune :** [responses.yaml](../openapi/components/responses.yaml), puis les références nécessaires.
-- **Un paramètre partagé :** [parameters.yaml](../openapi/components/parameters.yaml).
-- **Un exemple :** [examples.yaml](../openapi/components/examples.yaml) pour une erreur commune ; `paths/` pour un exemple défini dans l’opération ; [cache.yaml](../openapi/components/cache.yaml) pour le cache.
-- **Le cache :** `cache.yaml` et ses références dans [seuils.yaml](../openapi/paths/seuils.yaml).
-- **La sécurité :** [security.yaml](../openapi/components/security.yaml) pour le mécanisme, `security` dans les opérations pour leurs permissions.
-
-`Modifier la source → régénérer le bundle → valider → tester`.
-
-Conserver la cohérence avec [design.md](design.md), [api.md](api.md) et [api-review.md](api-review.md). Ne pas fermer une décision métier ouverte par une simple modification de schéma.
+Conserver la cohérence avec [design.md](design.md), [api.md](api.md) et [api-review.md](api-review.md). Une réorganisation des fichiers ne valide aucune décision métier ou OAuth encore ouverte.
 
 ## 1. Génération du bundle et validation Spectral
 
@@ -224,8 +126,22 @@ Ces résultats sont **historiques** et portent sur des versions successives du c
 - **Prism :** 118 appels identiques avant/après découpage : 12 succès, 43 erreurs forcées et 4 requêtes invalides par version. Ce contrôle précède les schémas actuels des relevés et alertes.
 - **Bruno :** vérification ciblée des seuils réussie, 5 requêtes et 11 tests. Les requêtes 01 et 03 n’avaient pas été rejouées ; la collection complète n’avait pas été réexécutée après le découpage.
 
-Aucun essai HTTP ni nouveau lint du contrat n’a été exécuté pour cette révision documentaire. Les aides des CLI Prism et Bruno ont été consultées pour vérifier les commandes.
+Lors de la révision rédactionnelle précédente, aucun essai HTTP ni nouveau lint n’avait été exécuté. Les aides des CLI Prism et Bruno avaient été consultées pour vérifier les commandes.
 
 Le fichier attendu `docs/mock.png` est absent. Les [captures disponibles](mock-prism.md#résultats-et-preuves) montrent des échanges antérieurs, pas une validation du backend actuel.
+
+## Vérification du refactoring par ressource
+
+Le 25 novembre 2026, la nouvelle [organisation](../openapi/architecture-api.md) a été vérifiée :
+
+- **Équivalence :** mêmes 13 opérations, 19 schémas et définitions d’origine après résolution des références. Les bundles avant/après sont fonctionnellement équivalents.
+- **Exemples :** les huit corps initialement déclarés avec `example` utilisent désormais des `examples` référencés. Leurs valeurs sont inchangées.
+- **Redocly et Spectral :** aucune erreur. Les avertissements préexistants restent présents : licence absente, serveur local et `AlertSummary` non référencé.
+- **Prism :** 77 échanges identiques avant/après, dont les succès, les réponses forcées et une création de seuil invalide.
+- **Schemathesis 4.33.4 :** parent et bundle chargés séparément ; 13 opérations testées et 159 cas réussis pour chaque entrée.
+
+Les essais Schemathesis ont utilisé `examples,coverage` en mode positif, avec `--max-examples 1 --max-time 40 --seed 20261125`. Les trois exclusions propres au mock sont celles du [guide Schemathesis](tests/schemathesis.md#premier-essai-avec-prism). Le fuzzing et les tests à état n’ont pas été exécutés.
+
+Ces contrôles portent sur le contrat et Prism. Ils ne prouvent pas l’implémentation des règles métier dans NestJS.
 
 Pour les tests générés depuis le contrat, poursuivre avec [Schemathesis](tests/schemathesis.md).

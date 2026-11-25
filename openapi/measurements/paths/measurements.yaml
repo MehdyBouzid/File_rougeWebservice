@@ -1,0 +1,68 @@
+ingestion:
+  post:
+    tags:
+      - Mesures
+    operationId: ingestMeasurements
+    summary: Enregistrer les mesures envoyées par les montres connectées pour assurer le suivi des patients.
+    description: Le simulateur transmet un lot pour le patient indiqué par patientId ; Scope montre
+      requis (403 sinon). Si le patient est inexistant ou n’est pas rattaché à l’émetteur
+      authentifié, la réponse est 404 (BOLA en écriture) ; patientId seul n’autorise pas l’envoi. Un
+      relevé invalide entraîne le rejet complet du lot ; l’enregistrement est atomique. Tout batchId
+      existant entraîne 409, contenu identique ou différent. L’évaluation des seuils suit
+      l’enregistrement dans le parcours décrit ; l’ordre technique et ses garanties restent à
+      valider.
+    x-caller: simulateur
+    security:
+      - bearerAuth:
+          - montre
+    responses:
+      "201":
+        $ref: ../components/responses/responses.yaml#/ingestMeasurements201
+      "400":
+        $ref: ../components/responses/responses.yaml#/ingestMeasurements400
+      "401":
+        $ref: ../../common/components/responses/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../../common/components/responses/responses.yaml#/Forbidden
+      "404":
+        $ref: ../../common/components/responses/responses.yaml#/PatientNotFound
+      "409":
+        $ref: ../components/responses/responses.yaml#/ingestMeasurements409
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/schemas.yaml#/MeasurementBatch
+          examples:
+            exemple:
+              $ref: ../components/examples/examples.yaml#/ingestMeasurementsRequest
+patientMeasurements:
+  get:
+    tags:
+      - Mesures
+    operationId: listPatientMeasurements
+    summary: Récupérer les mesures d’un patient sur une période donnée pour suivre leur évolution.
+    description: Scope soignant requis (403 sinon). Le patient doit exister, être suivi par le soignant
+      et avoir donné un consentement valide ; sinon 404, sans distinguer les cas (BOLA).
+    x-caller: soignant
+    security:
+      - bearerAuth:
+          - soignant
+    responses:
+      "200":
+        $ref: ../components/responses/responses.yaml#/listPatientMeasurements200
+      "400":
+        $ref: ../components/responses/responses.yaml#/listPatientMeasurements400
+      "401":
+        $ref: ../../common/components/responses/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../../common/components/responses/responses.yaml#/Forbidden
+      "404":
+        $ref: ../../common/components/responses/responses.yaml#/PatientNotFound
+    parameters:
+      - $ref: ../../common/components/parameters/parameters.yaml#/patientId
+      - $ref: ../../common/components/parameters/parameters.yaml#/startDate
+      - $ref: ../../common/components/parameters/parameters.yaml#/endDate
+      - $ref: ../../common/components/parameters/parameters.yaml#/page
+      - $ref: ../../common/components/parameters/parameters.yaml#/size

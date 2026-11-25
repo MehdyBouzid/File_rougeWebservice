@@ -1,0 +1,81 @@
+AlertStatus:
+  type: string
+  enum:
+    - ACTIVE
+    - TRAITEE
+AlertSummary:
+  type: object
+  properties:
+    alertId:
+      $ref: ../../../common/components/schemas/schemas.yaml#/Identifier
+    patientId:
+      $ref: ../../../common/components/schemas/schemas.yaml#/Identifier
+    nomPatient:
+      type: string
+    prenomPatient:
+      type: string
+    typeMesure:
+      $ref: ../../../common/components/schemas/schemas.yaml#/MeasurementType
+    horodatage:
+      type: string
+      format: date-time
+      description: Horodatage de l’alerte ; l’interprétation comme date de création est proposée, à confirmer.
+    statut:
+      $ref: "#/AlertStatus"
+  required:
+    - alertId
+    - patientId
+    - nomPatient
+    - prenomPatient
+    - typeMesure
+    - horodatage
+    - statut
+  description: Élément synthétique de GET /alerts, sans les valeurs mesurée et du seuil. L’enveloppe
+    paginée qui contient ces éléments reste à définir dans AlertPage.
+AlertDetail:
+  type: object
+  properties:
+    alertId:
+      $ref: ../../../common/components/schemas/schemas.yaml#/Identifier
+    patientId:
+      $ref: ../../../common/components/schemas/schemas.yaml#/Identifier
+    typeMesure:
+      $ref: ../../../common/components/schemas/schemas.yaml#/MeasurementType
+    valeurMesuree:
+      type: number
+      description: Valeur de la mesure ayant déclenché l’alerte.
+    valeurSeuil:
+      type: number
+      description: Valeur du seuil déclenché ; la borne minimale ou maximale réellement franchie est
+        proposée, à confirmer.
+    statut:
+      $ref: "#/AlertStatus"
+    horodatage:
+      type: string
+      format: date-time
+      description: Horodatage de l’alerte ; l’interprétation comme date de création est proposée, à confirmer.
+  required:
+    - alertId
+    - patientId
+    - typeMesure
+    - valeurMesuree
+    - valeurSeuil
+    - statut
+    - horodatage
+  description: Détail retourné par GET /alerts/{alertId} et après acquittement par PATCH. Aucun
+    identifiant de mesure ou de seuil n’est exposé. Les unités et bornes numériques restent
+    ouvertes, ainsi que les interprétations proposées de valeurSeuil et horodatage.
+AlertUpdate:
+  type: object
+  properties:
+    statut:
+      type: string
+      enum:
+        - TRAITEE
+  required:
+    - statut
+  description: Seule la transition ACTIVE vers TRAITEE est prévue. Pas de réactivation.
+AlertPage:
+  description: Liste paginée d’éléments décrits par AlertSummary (alertId, patientId, nomPatient,
+    prenomPatient, typeMesure, horodatage et statut). L’enveloppe JSON et les noms des métadonnées
+    de pagination restent ouverts ; ce schéma ne contraint pas encore leur structure.

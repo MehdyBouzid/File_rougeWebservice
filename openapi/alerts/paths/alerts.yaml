@@ -1,0 +1,94 @@
+collection:
+  get:
+    tags:
+      - Alertes
+    operationId: listAlerts
+    summary: Afficher les alertes des patients suivis, qu’elles soient actives ou déjà traitées.
+    description: Scope soignant requis (403 sinon). La collection ne contient que les alertes
+      accessibles au soignant connecté, quels que soient les filtres, car un filtre patientId sur un
+      patient inexistant ou non accessible donne une liste vide en 200, jamais 403 ni 404. Le
+      contrôle du consentement reste à valider ; s’il est retenu, les alertes sans consentement
+      valide sont aussi exclues.
+    x-caller: soignant
+    security:
+      - bearerAuth:
+          - soignant
+    responses:
+      "200":
+        $ref: ../components/responses/responses.yaml#/listAlerts200
+      "400":
+        $ref: ../components/responses/responses.yaml#/listAlerts400
+      "401":
+        $ref: ../../common/components/responses/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../../common/components/responses/responses.yaml#/Forbidden
+    parameters:
+      - $ref: ../components/parameters/parameters.yaml#/patientFilter
+      - $ref: ../components/parameters/parameters.yaml#/status
+      - $ref: ../../common/components/parameters/parameters.yaml#/startDate
+      - $ref: ../../common/components/parameters/parameters.yaml#/endDate
+      - $ref: ../../common/components/parameters/parameters.yaml#/page
+      - $ref: ../../common/components/parameters/parameters.yaml#/size
+item:
+  get:
+    tags:
+      - Alertes
+    operationId: getAlert
+    summary: Consulter les détails d’une alerte pour identifier le patient concerné et la mesure qui l’a
+      déclenchée.
+    description: Scope soignant requis (403 sinon). L’alerte doit exister, concerner un patient suivi
+      par le soignant et être couverte par un consentement valide ; sinon 404, sans distinguer les
+      cas (BOLA).
+    x-caller: soignant
+    security:
+      - bearerAuth:
+          - soignant
+    responses:
+      "200":
+        $ref: ../components/responses/responses.yaml#/getAlert200
+      "401":
+        $ref: ../../common/components/responses/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../../common/components/responses/responses.yaml#/Forbidden
+      "404":
+        $ref: ../components/responses/responses.yaml#/AlertNotFound
+    parameters:
+      - $ref: ../components/parameters/parameters.yaml#/alertId
+  patch:
+    tags:
+      - Alertes
+    operationId: acknowledgeAlert
+    summary: Marquer une alerte comme traitée après sa prise en charge par le soignant.
+    description: Seule la transition ACTIVE vers TRAITEE est prévue, sans réactivation. Les alertes
+      traitées sont conservées dans l’historique. Scope soignant requis (403 sinon). L’alerte doit
+      exister et concerner un patient suivi ; sinon 404 (BOLA, en écriture comme en lecture). Le
+      contrôle du consentement reste à valider ; s’il est retenu, son absence renvoie aussi 404.
+    x-caller: soignant
+    security:
+      - bearerAuth:
+          - soignant
+    x-pending-decision: Préciser la frontière entre statut invalide (400) et transition interdite (409).
+    responses:
+      "200":
+        $ref: ../components/responses/responses.yaml#/acknowledgeAlert200
+      "400":
+        $ref: ../components/responses/responses.yaml#/acknowledgeAlert400
+      "401":
+        $ref: ../../common/components/responses/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../../common/components/responses/responses.yaml#/Forbidden
+      "404":
+        $ref: ../components/responses/responses.yaml#/AlertNotFound
+      "409":
+        $ref: ../components/responses/responses.yaml#/acknowledgeAlert409
+    parameters:
+      - $ref: ../components/parameters/parameters.yaml#/alertId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/schemas.yaml#/AlertUpdate
+          examples:
+            fictif:
+              $ref: ../components/examples/examples.yaml#/acknowledgeAlertRequestFictif

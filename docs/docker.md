@@ -1,48 +1,54 @@
 # Docker — Commandes de développement Veillo
 
-Commandes à lancer depuis la racine, avec Docker Desktop démarré. Chaque développeur conserve son `.env` et sa base locale. Configuration : [compose.yaml](../compose.yaml), [outillage migrations](../compose.migrations.yaml) et [.env.example](../.env.example).
+Ce guide rassemble les commandes quotidiennes pour NestJS, PostgreSQL et les migrations. **Toutes partent de la racine du dépôt**, avec Docker Desktop démarré.
+
+Chaque développeur conserve son `.env` et sa base locale. Sources : [compose.yaml](../compose.yaml), [outillage migrations](../compose.migrations.yaml) et [.env.example](../.env.example).
 
 ## 1. Démarrer ou reconstruire
 
-Créer le `.env` uniquement s’il n’existe pas, puis y renseigner `DB_PASSWORD` avant le premier lancement.
+Créer `.env` seulement s’il manque, puis renseigner `DB_PASSWORD` avant le premier lancement :
 
 ```bash
 [ -f .env ] || cp .env.example .env
 ```
 
-Construire et démarrer `backend` et `postgres`, au premier lancement ou après un changement de code, de dépendances ou du Dockerfile.
+Construire et démarrer `backend` et `postgres`, au premier lancement ou après modification du code, des dépendances ou du Dockerfile :
 
 ```bash
 docker compose up -d --build
 ```
 
-Par défaut, le backend est accessible sur `http://localhost:3000` et PostgreSQL sur `127.0.0.1:55432` ; modifier `BACKEND_PORT` ou `DB_PORT` dans `.env` si un port est occupé.
+Le backend est publié par défaut sur `http://localhost:3000` et PostgreSQL sur `127.0.0.1:55432`. Modifier `BACKEND_PORT` ou `DB_PORT` dans `.env` si nécessaire, sans arrêter les autres applications.
+
+Compose fournit `postgres:5432` au backend : c’est l’adresse interne de la base, distincte du port publié sur l’hôte. Le backend attend le healthcheck PostgreSQL, qui vérifie que le serveur accepte les connexions.
 
 ## 2. Arrêter et reprendre
 
-Arrêter les conteneurs en conservant leurs données.
+Arrêter les services sans supprimer les données :
 
 ```bash
 docker compose stop
 ```
 
-Redémarrer les conteneurs arrêtés sans reconstruire leurs images.
+Reprendre les conteneurs arrêtés sans reconstruire leurs images :
 
 ```bash
 docker compose start
 ```
 
-**Protection des données :** conserver le volume `veillo_postgres_data` et le `.env` existant ; changer son mot de passe ne met pas à jour celui du cluster déjà initialisé, et un volume ne remplace pas une sauvegarde.
+Les données PostgreSQL sont dans le volume nommé `veillo_postgres_data`, conservé entre les redémarrages. Un volume ne remplace pas une sauvegarde.
+
+Conserver le `.env` existant : modifier son mot de passe ne change pas celui d’un cluster déjà initialisé. Ne pas supprimer le volume pour résoudre un problème de connexion.
 
 ## 3. État et logs
 
-Afficher l’état et les ports des conteneurs, y compris ceux arrêtés, et vérifier que PostgreSQL est `healthy`.
+Afficher les conteneurs, leurs ports et leur état, y compris ceux arrêtés ; PostgreSQL doit être `healthy` :
 
 ```bash
 docker compose ps -a
 ```
 
-Suivre les 30 dernières lignes de logs ; `Ctrl+C` quitte sans arrêter les services.
+Suivre les 30 dernières lignes de logs ; `Ctrl+C` quitte sans arrêter les services :
 
 ```bash
 docker compose logs --tail=30 -f backend postgres
@@ -50,7 +56,7 @@ docker compose logs --tail=30 -f backend postgres
 
 ## 4. Terminal du backend
 
-Ouvrir un shell dans le backend, avec `exit` pour quitter.
+Avec `backend` démarré, ouvrir son shell ; `exit` permet de quitter :
 
 ```bash
 docker compose exec backend sh
@@ -60,49 +66,44 @@ docker compose exec backend sh
 
 ### Se connecter
 
-Depuis la racine du projet, avec le service `postgres` démarré, ouvrir `psql` avec la base et l’utilisateur configurés dans le conteneur.
+Avec `postgres` démarré, ouvrir `psql` avec la base et l’utilisateur du conteneur :
 
 ```bash
 docker compose exec postgres sh -c 'exec psql -X -U "$POSTGRES_USER" -d "$POSTGRES_DB"'
 ```
 
-Les commandes ci-dessous se saisissent dans `psql`, pas dans le terminal système. Les commandes commençant par `\` ne nécessitent pas de point-virgule ; les requêtes SQL se terminent par `;`.
+Les commandes ci-dessous se saisissent dans `psql`. Celles commençant par `\` n’exigent pas de point-virgule ; une requête SQL se termine par `;`.
 
-### Consulter les tables et leur structure
+### Tables et structure
 
-**Les tables métier doivent d’abord être créées par leurs migrations.** Le démarrage de PostgreSQL ne crée pas `patient`, `seuil` ou `consentement` ; une table absente n’est donc pas forcément une erreur de connexion.
+**Les tables métier doivent avoir été créées par les migrations.** Démarrer PostgreSQL ne crée pas `patient`, `seuil` ou `consentement`.
 
 - `\dt` : lister les tables visibles.
-- `\dt+` : afficher aussi leur taille et leur description.
-- `\d` : lister les relations visibles, notamment les tables, vues et séquences.
-- `\d patient` : afficher la structure de Patient (colonnes, types, clés et contraintes).
-- `\d seuil` : afficher la structure de Seuil.
-- `\d consentement` : afficher la structure de Consentement.
+- `\dt+` : voir aussi leur taille et leur description.
+- `\d` : lister les relations visibles, notamment tables, vues et séquences.
+- `\d patient` : voir les colonnes, types, clés et contraintes de Patient.
+- `\d seuil` : voir la structure de Seuil.
+- `\d consentement` : voir la structure de Consentement.
 
-### Aide et sortie
+Les tables métier sont prévues dans `public` ; `\d public.patient` précise le schéma.
 
-- `\?` : afficher l’aide des commandes `psql` ; `?` seul ne suffit pas.
-- `\q` : quitter `psql` sans arrêter PostgreSQL.
-
-### Voir les index, schémas et bases
-
-- `\di` : lister les index visibles.
-- `\di public.*` : lister les index du schéma `public`, dont ceux des tables métier déjà créées.
-- `\dn` : lister les schémas.
-- `\l` : lister les bases de données.
-- `\conninfo` : vérifier la base, l’utilisateur et la connexion en cours.
-
-Les tables métier sont dans le schéma `public` ; pour préciser le schéma, utiliser par exemple `\d public.patient`.
-
-Lister les tables du schéma `public` sans ouvrir de session interactive.
+Depuis le terminal système, lister les tables sans session interactive :
 
 ```bash
 docker compose exec postgres sh -c 'exec psql -X -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\dt public.*"'
 ```
 
-### Consulter l’historique des migrations
+### Index, schémas et bases
 
-Dans `psql`, afficher les migrations enregistrées par TypeORM, dans leur ordre d’application :
+- `\di` : lister les index visibles.
+- `\di public.*` : lister les index du schéma `public`.
+- `\dn` : lister les schémas.
+- `\l` : lister les bases.
+- `\conninfo` : vérifier la connexion, la base et l’utilisateur actuels.
+
+### Historique des migrations
+
+Dans `psql`, consulter les migrations appliquées dans leur ordre d’enregistrement :
 
 ```sql
 SELECT id, timestamp, name
@@ -110,63 +111,104 @@ FROM public.veillo_migrations
 ORDER BY id;
 ```
 
-Cet historique contient les migrations appliquées, pas celles encore en attente. Ne pas le modifier manuellement ; si la table n’existe pas encore, TypeORM la créera lors de la gestion des migrations.
+Cet historique ne liste pas les migrations en attente. Ne pas le modifier manuellement ; TypeORM le crée lors de la gestion des migrations s’il manque.
+
+### Aide et sortie
+
+- `\?` : afficher l’aide des commandes `psql` ; `?` seul ne suffit pas.
+- `\q` : quitter sans arrêter PostgreSQL.
 
 ## Migrations TypeORM
 
-Les fichiers sont dans [backend/src/persistence/migrations/](../backend/src/persistence/migrations/). **Certains squelettes lèvent encore une erreur : les compléter et les relire avant d’appliquer toutes les migrations en attente.**
+### Comprendre le parcours
 
-**Exécuter uniquement la migration Patient (exemple)** depuis la racine, avec PostgreSQL démarré,
+Une migration versionne une évolution du schéma. `up()` l’applique, `down()` prévoit son retour arrière, et `veillo_migrations` conserve les exécutions réussies.
 
-```bash
-docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools node -e 'const d=require("./dist/persistence/data-source.js").default;d.setOptions({migrations:["dist/persistence/migrations/1794929035067-CreatePatients.js"]});d.initialize().then(async()=>{try{await d.runMigrations()}finally{await d.destroy()}}).catch(e=>{console.error(e);process.exitCode=1})'
-```
+Les fichiers sont dans [persistence/migrations/](../backend/src/persistence/migrations/). Le SQL Patients, Seuils et Consentements est préparé ; les autres squelettes lèvent encore une erreur. Consentements dépend de Patient et Soignant.
 
-Cette commande conserve la connexion et l’historique `veillo_migrations` configurés : elle applique Patient dans une transaction si cette migration n’est pas déjà enregistrée, sans exécuter les autres migrations ni modifier les fichiers du projet. Elle a été vérifiée par lecture du code, mais n’a pas été exécutée.
+`synchronize: false` et `migrationsRun: false` sont conservés : le backend ne crée pas automatiquement les tables et ne lance aucune migration au démarrage.
 
-Créer un squelette horodaté en remplaçant `DescriptionEvolution` par un nom explicite en PascalCase.
+### Créer, générer et vérifier
+
+Créer un squelette en remplaçant `DescriptionEvolution` par un nom explicite en PascalCase :
 
 ```bash
 docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools npm run migration:create -- DescriptionEvolution
 ```
 
-Générer une migration en comparant les Entities compilées à une base de référence à jour, sans appliquer le SQL produit.
+Générer une migration depuis la différence entre les Entities compilées et une base de référence à jour, sans appliquer le SQL :
 
 ```bash
 docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools npm run migration:generate -- DescriptionEvolution
 ```
 
-L’outillage écrit les fichiers dans les sources locales ; la génération retourne le code `1` sans fichier lorsqu’aucune différence n’est détectée.
+Les fichiers sont écrits dans les sources locales. Sans différence, la génération retourne le code `1` et ne produit aucun fichier. Relire le résultat avant application ; les Entities encore vides ne définissent pas le futur schéma métier.
 
-Vérifier les conventions de nommage et l’absence de doublons locaux de nom ou de timestamp.
+Vérifier les noms et l’absence de doublons locaux de nom ou de timestamp :
 
 ```bash
 docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools npm run migration:check
 ```
 
-Consulter les migrations appliquées (`[X]`) et en attente (`[ ]`) présentes dans l’image du backend.
+Convention : `<timestamp sur 13 chiffres>-DescriptionPascalCase.ts`. Le timestamp ordonne les migrations, mais ne résout pas les dépendances SQL ni les conflits entre développeurs.
+
+### Consulter l’état
+
+Avec PostgreSQL démarré, reconstruire l’outillage puis lire les migrations appliquées (`[X]`) et en attente (`[ ]`), sans démarrer le backend :
+
+```bash
+docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools npm run migration:show
+```
+
+Si le backend est déjà démarré et son image à jour, cette commande reste utilisable :
 
 ```bash
 docker compose exec backend npm run migration:show
 ```
 
-Appliquer les migrations en attente uniquement après relecture du SQL, validation commune et sauvegarde adaptée.
+Un statut vide dans une ancienne image ne signifie pas que les sources sont vides. `--build` actualise les migrations compilées avant le lancement de l’outillage.
+
+### Appliquer les migrations
+
+**Relire le SQL, vérifier les dépendances et prévoir une sauvegarde adaptée.** La commande applique toutes les migrations en attente ; ne pas la lancer tant que les squelettes bloquants ne sont pas complétés.
+
+```bash
+docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools npm run migration:run
+```
+
+Avec un backend démarré et une image reconstruite, l’équivalent existant est :
 
 ```bash
 docker compose exec backend npm run migration:run
 ```
 
-**Avant application :** reconstruire avec la commande de la section 1 pour inclure les migrations compilées ; un statut vide dans une ancienne image ne signifie pas que les sources sont vides.
+### Exécuter uniquement Patient
 
-**Travail à deux :**
+Exemple ciblé, depuis la racine, avec PostgreSQL démarré :
+
+```bash
+docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools node -e 'const d=require("./dist/persistence/data-source.js").default;d.setOptions({migrations:["dist/persistence/migrations/1794929035067-CreatePatients.js"]});d.initialize().then(async()=>{try{await d.runMigrations()}finally{await d.destroy()}}).catch(e=>{console.error(e);process.exitCode=1})'
+```
+
+Cette commande conserve la connexion et l’historique configurés. Elle sélectionne uniquement Patient et l’applique dans une transaction si elle n’est pas déjà enregistrée ; aucune autre migration n’est exécutée.
+
+Le script npm standard ne sélectionne pas une migration par nom. Cet exemple adapte seulement la sélection en mémoire, sans modifier les fichiers du projet. Il a été vérifié par lecture du code et n’a pas été exécuté pendant cette révision.
+
+### Travailler à deux
 
 - Récupérer les dernières migrations avant d’en créer une.
-- Vérifier noms, timestamps, ordre, dépendances et SQL avant fusion : un timestamp unique n’empêche pas un conflit de schéma.
+- Vérifier noms, timestamps, ordre, tables, colonnes, contraintes et dépendances avant fusion.
+- Un timestamp unique n’empêche pas deux migrations de modifier la même table ; coordonner leurs changements avant application.
 - Corriger une migration partagée ou appliquée par une nouvelle migration.
 - N’appliquer qu’une série à la fois sur une base commune.
+- Ne jamais supprimer ou réinitialiser une base pour résoudre un conflit.
 
-`synchronize: false` et `migrationsRun: false` restent configurés : démarrer le backend n’applique aucune migration, et aucun conflit ne doit être résolu en supprimant ou réinitialisant une base.
+Le retour arrière demande de relire `down()` et les dépendances : retirer une table peut supprimer ses données. Les scripts disponibles sont décrits dans [package.json](../backend/package.json) ; ne pas confondre rollback et sauvegarde.
 
 <a id="10-état-actuel-et-limites"></a>
 
-Ce guide a été simplifié après vérification des fichiers Docker, Compose et des scripts npm ; aucune commande Docker ni migration n’a été exécutée pendant cette modification.
+## Vérifications et limites
+
+Les commandes ont été confrontées aux fichiers Compose, au Dockerfile, aux scripts npm et à la configuration TypeORM. Les lectures d’environnement consignées dans le [README du backend](../backend/README.md#consultation-et-preuves-historiques) proviennent d’un audit antérieur.
+
+Aucune commande Docker, migration ou requête PostgreSQL n’a été exécutée pendant cette révision documentaire. L’état réellement appliqué doit être vérifié sur la base de chaque développeur.

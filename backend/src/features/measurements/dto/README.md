@@ -1,5 +1,7 @@
-# DTO
+# Mesures — DTO
 
-Décrire ici les données reçues ou retournées selon le contrat OpenAPI.
-Les DTO d’entrée portent les règles de validation, qui devront être activées côté NestJS.
-La classe fournie prépare un échange déjà documenté ; ses champs et validations restent à définir selon le contrat.
+[measurement-batch.dto.ts](measurement-batch.dto.ts) prépare les données reçues par `POST /measurements`. Compléter ses champs et décorateurs selon le [contrat Mesures](../../../../../openapi/measurements/guide.md), sans copier automatiquement l’Entity.
+
+Le `ValidationPipe` global est déjà activé. Les règles métier restent dans le Service ; le DTO porte les contraintes de structure des entrées.
+
+[Validation et couches backend](../../../../README.md#validation-des-entrées).

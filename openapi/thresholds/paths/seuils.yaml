@@ -1,0 +1,142 @@
+collection:
+  get:
+    tags:
+      - Seuils
+    operationId: listPatientThresholds
+    summary: Consulter les seuils configurés pour surveiller les mesures d’un patient.
+    description: Scope soignant requis (403 sinon). Le patient doit exister et être suivi par le
+      soignant ; sinon 404 (BOLA). Le contrôle du consentement reste à valider ; s’il est retenu,
+      son absence ou son retrait renvoie aussi 404.
+    x-caller: soignant
+    security:
+      - bearerAuth:
+          - soignant
+    responses:
+      "200":
+        $ref: ../components/responses/responses.yaml#/listPatientThresholds200
+      "401":
+        $ref: ../../common/components/responses/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../../common/components/responses/responses.yaml#/Forbidden
+      "404":
+        $ref: ../../common/components/responses/responses.yaml#/PatientNotFound
+    parameters:
+      - $ref: ../../common/components/parameters/parameters.yaml#/patientId
+  post:
+    tags:
+      - Seuils
+    operationId: createPatientThreshold
+    summary: Créer un seuil définissant les limites qui déclenchent des alertes pour les mesures d’un
+      patient.
+    description: Un seul seuil actif est autorisé par patient et type de mesure. Le nouveau seuil est
+      automatiquement actif. Les bornes doivent respecter valeurMin <= valeurMax ; le backend
+      réalise cette comparaison. Scope soignant requis (403 sinon). Le patient doit exister et être
+      suivi par le soignant ; sinon 404 (BOLA, en écriture). Le contrôle du consentement reste à
+      valider ; s’il est retenu, son absence renvoie aussi 404.
+    x-caller: soignant
+    security:
+      - bearerAuth:
+          - soignant
+    responses:
+      "201":
+        $ref: ../components/responses/responses.yaml#/createPatientThreshold201
+      "400":
+        $ref: ../components/responses/responses.yaml#/createPatientThreshold400
+      "401":
+        $ref: ../../common/components/responses/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../../common/components/responses/responses.yaml#/Forbidden
+      "404":
+        $ref: ../../common/components/responses/responses.yaml#/PatientNotFound
+      "409":
+        $ref: ../components/responses/responses.yaml#/createPatientThreshold409
+    parameters:
+      - $ref: ../../common/components/parameters/parameters.yaml#/patientId
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/schemas.yaml#/ThresholdCreate
+          examples:
+            exemple:
+              $ref: ../components/examples/examples.yaml#/createPatientThresholdRequest
+item:
+  get:
+    tags:
+      - Seuils
+    operationId: getPatientThreshold
+    summary: Consulter un seuil d’un patient et obtenir son ETag pour une modification conditionnelle.
+    description: Scope soignant requis (403 sinon). Le patient doit exister et être suivi, et le seuil
+      doit lui appartenir ; sinon 404 (BOLA). Le contrôle du consentement reste à valider ; s’il est
+      retenu, son absence renvoie aussi 404. La réponse porte l’ETag à renvoyer dans If-Match pour
+      le PATCH. Si If-None-Match correspond à l’état courant, la réponse est 304 sans corps ; cette
+      précondition n’est évaluée que si la requête aurait abouti en 200.
+    x-caller: soignant
+    security:
+      - bearerAuth:
+          - soignant
+    responses:
+      "200":
+        $ref: ../components/responses/responses.yaml#/getPatientThreshold200
+      "304":
+        $ref: ../../cache/components/responses/responses.yaml#/NotModified
+      "401":
+        $ref: ../../common/components/responses/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../../common/components/responses/responses.yaml#/Forbidden
+      "404":
+        $ref: ../components/responses/responses.yaml#/ThresholdNotFound
+    parameters:
+      - $ref: ../../common/components/parameters/parameters.yaml#/patientId
+      - $ref: ../components/parameters/parameters.yaml#/seuilId
+      - $ref: ../../cache/components/parameters/parameters.yaml#/ifNoneMatch
+  patch:
+    tags:
+      - Seuils
+    operationId: updatePatientThreshold
+    summary: Adapter les valeurs d’un seuil ou l’activer ou le désactiver pour ajuster la surveillance
+      du patient.
+    description: Un seul seuil actif est autorisé par patient et type de mesure. La désactivation
+      conserve le seuil. Le backend vérifie valeurMin <= valeurMax sur l’état final, en combinant
+      les modifications avec les valeurs conservées. Le corps doit être non vide. Scope soignant
+      requis (403 sinon). Le patient doit exister et être suivi, et le seuil doit lui appartenir ;
+      sinon 404 (BOLA, en écriture), y compris pour un seuil d’un autre patient. Le contrôle du
+      consentement reste à valider ; s’il est retenu, son absence renvoie aussi 404. If-Match est
+      exigé, absent il donne 428 ; ne correspondant plus à l’état courant, 412. Ordre des contrôles,
+      401, 403, 404, 428, 412 (RFC 9110, les préconditions précèdent le traitement du contenu), puis
+      400 et 409. Le backend devra vérifier l’ETag et écrire dans une même transaction.
+    x-caller: soignant
+    security:
+      - bearerAuth:
+          - soignant
+    responses:
+      "200":
+        $ref: ../components/responses/responses.yaml#/updatePatientThreshold200
+      "400":
+        $ref: ../components/responses/responses.yaml#/updatePatientThreshold400
+      "401":
+        $ref: ../../common/components/responses/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../../common/components/responses/responses.yaml#/Forbidden
+      "404":
+        $ref: ../components/responses/responses.yaml#/updatePatientThreshold404
+      "409":
+        $ref: ../components/responses/responses.yaml#/updatePatientThreshold409
+      "412":
+        $ref: ../../cache/components/responses/responses.yaml#/PreconditionFailed
+      "428":
+        $ref: ../../cache/components/responses/responses.yaml#/PreconditionRequired
+    parameters:
+      - $ref: ../../common/components/parameters/parameters.yaml#/patientId
+      - $ref: ../components/parameters/parameters.yaml#/seuilId
+      - $ref: ../../cache/components/parameters/parameters.yaml#/ifMatch
+    requestBody:
+      required: true
+      content:
+        application/json:
+          schema:
+            $ref: ../components/schemas/schemas.yaml#/ThresholdPatch
+          examples:
+            exemple:
+              $ref: ../components/examples/examples.yaml#/updatePatientThresholdRequest

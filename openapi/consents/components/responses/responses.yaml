@@ -1,0 +1,28 @@
+ConsentNotFound:
+  description: Consentement inexistant ou n’appartenant pas au patient connecté (BOLA). Les deux cas
+    ne sont pas distinguables dans la réponse.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/NotFound
+listMyConsents200:
+  description: Les consentements du patient identifié par son authentification sont récupérés.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/ConsentList
+withdrawConsent204:
+  description: Le retrait du consentement appartenant au patient connecté est enregistré ; la réponse
+    ne contient pas de corps.
+withdrawConsent404:
+  description: Le consentement demandé est introuvable.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/NotFound

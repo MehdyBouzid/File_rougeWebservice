@@ -52,7 +52,7 @@ Sans installation globale, `prism` seul peut être introuvable : garder la comma
 
 ## 3. Lancer le mock
 
-Depuis la racine du dépôt, utiliser le [fichier parent](../openapi/openapi.yaml), qui charge aussi `paths/` et `components/` :
+Depuis la racine du dépôt, utiliser le [fichier parent](../openapi/openapi.yaml). Il charge les `paths/` et composants de chaque ressource, ainsi que les définitions transversales : voir l’[architecture des contrats](../openapi/architecture-api.md).
 
 ```powershell
 npx @stoplight/prism-cli mock openapi/openapi.yaml
@@ -140,4 +140,6 @@ Captures disponibles :
 
 Ces images sont des **preuves historiques**, pas le contrat actuel : le seuil utilise désormais `seuilId`, et ni l’enveloppe Patients ni la limite de SpO₂ à 100 ne sont validées par ces captures. Le fichier attendu `docs/mock.png` est absent.
 
-Prism vérifie les schémas, pas la persistance, les transactions, l’unicité, le consentement ou les contrôles d’accès. Les réponses forcées et les exemples statiques ne prouvent pas l’implémentation métier. Voir les [écarts techniques observés](api-review.md#contrat-mock-et-backend). Aucun nouvel essai HTTP n’a été exécuté pendant cette révision.
+Prism vérifie les schémas, pas la persistance, les transactions, l’unicité, le consentement ou les contrôles d’accès. Les réponses forcées et les exemples statiques ne prouvent pas l’implémentation métier. Voir les [écarts techniques observés](api-review.md#contrat-mock-et-backend).
+
+Les captures ci-dessus restent historiques. Les essais après réorganisation des sources sont consignés dans les [résultats du refactoring](outillage-tp3.md#vérification-du-refactoring-par-ressource).

@@ -37,28 +37,9 @@ paths:
             - montre
       responses:
         '201':
-          description: Le lot a été validé et enregistré avec toutes ses mesures dans une transaction.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/BatchReceipt'
-          headers:
-            Location:
-              description: URI du lot créé. Convention non définie dans les documents ; aucune route de consultation des lots n’est ajoutée.
-              required: true
-              schema:
-                type: string
-                format: uri-reference
-              x-pending-decision: Définir l’URI canonique du lot créé pour renseigner Location.
+          $ref: '#/components/responses/ingestMeasurements201'
         '400':
-          description: Les données du lot sont invalides ; un seul relevé invalide entraîne le rejet du lot entier.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/BadRequest'
+          $ref: '#/components/responses/ingestMeasurements400'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -66,28 +47,16 @@ paths:
         '404':
           $ref: '#/components/responses/PatientNotFound'
         '409':
-          description: Le `batchId` a déjà été utilisé, que le contenu soit identique ou différent ; aucune nouvelle mesure n’est enregistrée.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Conflict'
+          $ref: '#/components/responses/ingestMeasurements409'
       requestBody:
         required: true
         content:
           application/json:
             schema:
               $ref: '#/components/schemas/MeasurementBatch'
-            example:
-              patientId: patient-001
-              batchId: lot-001
-              measurements:
-                - horodatage: '2026-11-19T10:00:00Z'
-                  frequenceCardiaque: 75
-                  spo2: 98
-                  pas: 120
+            examples:
+              exemple:
+                $ref: '#/components/examples/ingestMeasurementsRequest'
   /patients/{patientId}/measurements:
     get:
       tags:
@@ -101,20 +70,9 @@ paths:
             - soignant
       responses:
         '200':
-          description: Les mesures du patient correspondant à la période et à la page demandées sont récupérées.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/MeasurementPage'
+          $ref: '#/components/responses/listPatientMeasurements200'
         '400':
-          description: Les paramètres de période ou de pagination sont invalides, notamment si `size` dépasse 100.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/BadRequest'
+          $ref: '#/components/responses/listPatientMeasurements400'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -140,20 +98,9 @@ paths:
             - soignant
       responses:
         '200':
-          description: La liste paginée des patients suivis par le soignant connecté est récupérée.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/PatientPage'
+          $ref: '#/components/responses/listPatients200'
         '400':
-          description: Les paramètres de pagination sont invalides ; la taille maximale documentée est de 100 patients.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/BadRequest'
+          $ref: '#/components/responses/listPatients400'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -174,11 +121,7 @@ paths:
             - soignant
       responses:
         '200':
-          description: Les informations du patient suivi sont récupérées.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Patient'
+          $ref: '#/components/responses/getPatient200'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -200,20 +143,9 @@ paths:
             - soignant
       responses:
         '200':
-          description: Les alertes des patients suivis sont récupérées selon les filtres et la pagination demandés. Chaque élément est décrit par AlertSummary ; l’enveloppe paginée reste ouverte.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AlertPage'
+          $ref: '#/components/responses/listAlerts200'
         '400':
-          description: Les filtres ou les paramètres de pagination sont invalides ; la taille maximale documentée est de 100 alertes.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/BadRequest'
+          $ref: '#/components/responses/listAlerts400'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -238,19 +170,7 @@ paths:
             - soignant
       responses:
         '200':
-          description: Les détails de l’alerte demandée sont récupérés.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AlertDetail'
-              example:
-                alertId: alerte-001
-                patientId: patient-001
-                typeMesure: FREQUENCE_CARDIAQUE
-                valeurMesuree: 125
-                valeurSeuil: 110
-                statut: ACTIVE
-                horodatage: '2026-11-20T10:00:00Z'
+          $ref: '#/components/responses/getAlert200'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -272,28 +192,9 @@ paths:
       x-pending-decision: Préciser la frontière entre statut invalide (400) et transition interdite (409).
       responses:
         '200':
-          description: L’alerte a été marquée `TRAITEE`.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/AlertDetail'
-              example:
-                alertId: alerte-001
-                patientId: patient-001
-                typeMesure: FREQUENCE_CARDIAQUE
-                valeurMesuree: 125
-                valeurSeuil: 110
-                statut: TRAITEE
-                horodatage: '2026-11-20T10:00:00Z'
+          $ref: '#/components/responses/acknowledgeAlert200'
         '400':
-          description: Le statut transmis est invalide ; la valeur de mise à jour prévue est `TRAITEE`.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/BadRequest'
+          $ref: '#/components/responses/acknowledgeAlert400'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -301,14 +202,7 @@ paths:
         '404':
           $ref: '#/components/responses/AlertNotFound'
         '409':
-          description: L’alerte est déjà traitée ou la transition de statut demandée est interdite.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Conflict'
+          $ref: '#/components/responses/acknowledgeAlert409'
       parameters:
         - $ref: '#/components/parameters/alertId'
       requestBody:
@@ -319,9 +213,7 @@ paths:
               $ref: '#/components/schemas/AlertUpdate'
             examples:
               fictif:
-                summary: Acquitter une alerte
-                value:
-                  statut: TRAITEE
+                $ref: '#/components/examples/acknowledgeAlertRequestFictif'
   /patients/me/consents:
     get:
       tags:
@@ -335,11 +227,7 @@ paths:
             - patient
       responses:
         '200':
-          description: Les consentements du patient identifié par son authentification sont récupérés.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ConsentList'
+          $ref: '#/components/responses/listMyConsents200'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -358,20 +246,13 @@ paths:
       x-pending-decision: Définir le comportement d’un retrait déjà effectué.
       responses:
         '204':
-          description: Le retrait du consentement appartenant au patient connecté est enregistré ; la réponse ne contient pas de corps.
+          $ref: '#/components/responses/withdrawConsent204'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          description: Le consentement demandé est introuvable.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/NotFound'
+          $ref: '#/components/responses/withdrawConsent404'
       parameters:
         - $ref: '#/components/parameters/consentId'
   /patients/{patientId}/seuils:
@@ -387,11 +268,7 @@ paths:
             - soignant
       responses:
         '200':
-          description: Les seuils configurés pour le patient sont récupérés.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ThresholdList'
+          $ref: '#/components/responses/listPatientThresholds200'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -412,37 +289,9 @@ paths:
             - soignant
       responses:
         '201':
-          description: Le nouveau seuil du patient a été enregistré.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Threshold'
-              example:
-                seuilId: seuil-001
-                patientId: patient-001
-                typeMesure: FREQUENCE_CARDIAQUE
-                valeurMin: 60
-                valeurMax: 100
-                actif: true
-          headers:
-            ETag:
-              $ref: '#/components/headers/ETag'
-            Location:
-              description: URI identifiant la ressource créée. Elle désigne le GET individuel du seuil.
-              required: true
-              schema:
-                type: string
-                format: uri-reference
-              example: /patients/patient-001/seuils/seuil-001
+          $ref: '#/components/responses/createPatientThreshold201'
         '400':
-          description: Propriété obligatoire absente, type invalide, valeur nulle, propriété inconnue ou valeurMin supérieure à valeurMax.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/BadRequest'
+          $ref: '#/components/responses/createPatientThreshold400'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
@@ -450,14 +299,7 @@ paths:
         '404':
           $ref: '#/components/responses/PatientNotFound'
         '409':
-          description: Un seuil actif du même type existe déjà pour ce patient ; la création est refusée.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Conflict'
+          $ref: '#/components/responses/createPatientThreshold409'
       parameters:
         - $ref: '#/components/parameters/patientId'
       requestBody:
@@ -466,10 +308,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ThresholdCreate'
-            example:
-              typeMesure: FREQUENCE_CARDIAQUE
-              valeurMin: 60
-              valeurMax: 100
+            examples:
+              exemple:
+                $ref: '#/components/examples/createPatientThresholdRequest'
   /patients/{patientId}/seuils/{seuilId}:
     get:
       tags:
@@ -483,21 +324,7 @@ paths:
             - soignant
       responses:
         '200':
-          description: Le seuil demandé est récupéré, avec son ETag.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Threshold'
-              example:
-                seuilId: seuil-001
-                patientId: patient-001
-                typeMesure: FREQUENCE_CARDIAQUE
-                valeurMin: 60
-                valeurMax: 100
-                actif: true
-          headers:
-            ETag:
-              $ref: '#/components/headers/ETag'
+          $ref: '#/components/responses/getPatientThreshold200'
         '304':
           $ref: '#/components/responses/NotModified'
         '401':
@@ -522,52 +349,17 @@ paths:
             - soignant
       responses:
         '200':
-          description: Les valeurs ou l’état du seuil ont été modifiés ; la réponse porte le nouvel ETag.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Threshold'
-              example:
-                seuilId: seuil-001
-                patientId: patient-001
-                typeMesure: FREQUENCE_CARDIAQUE
-                valeurMin: 55
-                valeurMax: 110
-                actif: true
-          headers:
-            ETag:
-              $ref: '#/components/headers/ETag'
+          $ref: '#/components/responses/updatePatientThreshold200'
         '400':
-          description: Corps vide, valeur nulle, type invalide, propriété inconnue ou bornes finales ne respectant pas valeurMin <= valeurMax.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/BadRequest'
+          $ref: '#/components/responses/updatePatientThreshold400'
         '401':
           $ref: '#/components/responses/Unauthorized'
         '403':
           $ref: '#/components/responses/Forbidden'
         '404':
-          description: Le patient ou le seuil demandé est introuvable.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/NotFound'
+          $ref: '#/components/responses/updatePatientThreshold404'
         '409':
-          description: L’activation entrerait en conflit avec un autre seuil actif du même type pour ce patient.
-          content:
-            application/problem+json:
-              schema:
-                $ref: '#/components/schemas/Problem'
-              examples:
-                erreur:
-                  $ref: '#/components/examples/Conflict'
+          $ref: '#/components/responses/updatePatientThreshold409'
         '412':
           $ref: '#/components/responses/PreconditionFailed'
         '428':
@@ -582,10 +374,9 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ThresholdPatch'
-            example:
-              valeurMin: 55
-              valeurMax: 110
-              actif: true
+            examples:
+              exemple:
+                $ref: '#/components/examples/updatePatientThresholdRequest'
 components:
   responses:
     Unauthorized:
@@ -631,6 +422,197 @@ components:
           examples:
             erreur:
               $ref: '#/components/examples/NotFound'
+    ingestMeasurements201:
+      description: Le lot a été validé et enregistré avec toutes ses mesures dans une transaction.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/BatchReceipt'
+      headers:
+        Location:
+          description: URI du lot créé. Convention non définie dans les documents ; aucune route de consultation des lots n’est ajoutée.
+          required: true
+          schema:
+            type: string
+            format: uri-reference
+          x-pending-decision: Définir l’URI canonique du lot créé pour renseigner Location.
+    ingestMeasurements400:
+      description: Les données du lot sont invalides ; un seul relevé invalide entraîne le rejet du lot entier.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/BadRequest'
+    ingestMeasurements409:
+      description: Le `batchId` a déjà été utilisé, que le contenu soit identique ou différent ; aucune nouvelle mesure n’est enregistrée.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/Conflict'
+    listPatientMeasurements200:
+      description: Les mesures du patient correspondant à la période et à la page demandées sont récupérées.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/MeasurementPage'
+    listPatientMeasurements400:
+      description: Les paramètres de période ou de pagination sont invalides, notamment si `size` dépasse 100.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/BadRequest'
+    listPatients200:
+      description: La liste paginée des patients suivis par le soignant connecté est récupérée.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/PatientPage'
+    listPatients400:
+      description: Les paramètres de pagination sont invalides ; la taille maximale documentée est de 100 patients.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/BadRequest'
+    getPatient200:
+      description: Les informations du patient suivi sont récupérées.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Patient'
+    listAlerts200:
+      description: Les alertes des patients suivis sont récupérées selon les filtres et la pagination demandés. Chaque élément est décrit par AlertSummary ; l’enveloppe paginée reste ouverte.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AlertPage'
+    listAlerts400:
+      description: Les filtres ou les paramètres de pagination sont invalides ; la taille maximale documentée est de 100 alertes.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/BadRequest'
+    getAlert200:
+      description: Les détails de l’alerte demandée sont récupérés.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AlertDetail'
+          examples:
+            exemple:
+              $ref: '#/components/examples/getAlert200'
+    acknowledgeAlert200:
+      description: L’alerte a été marquée `TRAITEE`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/AlertDetail'
+          examples:
+            exemple:
+              $ref: '#/components/examples/acknowledgeAlert200'
+    acknowledgeAlert400:
+      description: Le statut transmis est invalide ; la valeur de mise à jour prévue est `TRAITEE`.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/BadRequest'
+    acknowledgeAlert409:
+      description: L’alerte est déjà traitée ou la transition de statut demandée est interdite.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/Conflict'
+    listMyConsents200:
+      description: Les consentements du patient identifié par son authentification sont récupérés.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ConsentList'
+    withdrawConsent204:
+      description: Le retrait du consentement appartenant au patient connecté est enregistré ; la réponse ne contient pas de corps.
+    withdrawConsent404:
+      description: Le consentement demandé est introuvable.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/NotFound'
+    listPatientThresholds200:
+      description: Les seuils configurés pour le patient sont récupérés.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ThresholdList'
+    createPatientThreshold201:
+      description: Le nouveau seuil du patient a été enregistré.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Threshold'
+          examples:
+            exemple:
+              $ref: '#/components/examples/createPatientThreshold201'
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
+        Location:
+          description: URI identifiant la ressource créée. Elle désigne le GET individuel du seuil.
+          required: true
+          schema:
+            type: string
+            format: uri-reference
+          example: /patients/patient-001/seuils/seuil-001
+    createPatientThreshold400:
+      description: Propriété obligatoire absente, type invalide, valeur nulle, propriété inconnue ou valeurMin supérieure à valeurMax.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/BadRequest'
+    createPatientThreshold409:
+      description: Un seuil actif du même type existe déjà pour ce patient ; la création est refusée.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/Conflict'
+    getPatientThreshold200:
+      description: Le seuil demandé est récupéré, avec son ETag.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Threshold'
+          examples:
+            exemple:
+              $ref: '#/components/examples/createPatientThreshold201'
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
     NotModified:
       description: Le seuil n’a pas changé depuis l’ETag fourni dans If-None-Match ; aucun corps n’est renvoyé. L’ETag est répété dans la réponse.
       headers:
@@ -645,6 +627,45 @@ components:
           examples:
             erreur:
               $ref: '#/components/examples/NotFound'
+    updatePatientThreshold200:
+      description: Les valeurs ou l’état du seuil ont été modifiés ; la réponse porte le nouvel ETag.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Threshold'
+          examples:
+            exemple:
+              $ref: '#/components/examples/updatePatientThreshold200'
+      headers:
+        ETag:
+          $ref: '#/components/headers/ETag'
+    updatePatientThreshold400:
+      description: Corps vide, valeur nulle, type invalide, propriété inconnue ou bornes finales ne respectant pas valeurMin <= valeurMax.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/BadRequest'
+    updatePatientThreshold404:
+      description: Le patient ou le seuil demandé est introuvable.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/NotFound'
+    updatePatientThreshold409:
+      description: L’activation entrerait en conflit avec un autre seuil actif du même type pour ce patient.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/Problem'
+          examples:
+            erreur:
+              $ref: '#/components/examples/Conflict'
     PreconditionFailed:
       description: If-Match ne correspond pas à l’ETag courant du seuil, car il a été modifié depuis sa lecture. Le client relit le seuil (GET) avant de réessayer. Évaluée après 401, 403, 404 et 428.
       content:
@@ -706,6 +727,63 @@ components:
         title: Conflit métier
         status: 409
         detail: Conflit métier. Exemple fictif sans donnée de santé.
+    ingestMeasurementsRequest:
+      value:
+        patientId: patient-001
+        batchId: lot-001
+        measurements:
+          - horodatage: '2026-11-19T10:00:00Z'
+            frequenceCardiaque: 75
+            spo2: 98
+            pas: 120
+    getAlert200:
+      value:
+        alertId: alerte-001
+        patientId: patient-001
+        typeMesure: FREQUENCE_CARDIAQUE
+        valeurMesuree: 125
+        valeurSeuil: 110
+        statut: ACTIVE
+        horodatage: '2026-11-20T10:00:00Z'
+    acknowledgeAlertRequestFictif:
+      summary: Acquitter une alerte
+      value:
+        statut: TRAITEE
+    acknowledgeAlert200:
+      value:
+        alertId: alerte-001
+        patientId: patient-001
+        typeMesure: FREQUENCE_CARDIAQUE
+        valeurMesuree: 125
+        valeurSeuil: 110
+        statut: TRAITEE
+        horodatage: '2026-11-20T10:00:00Z'
+    createPatientThresholdRequest:
+      value:
+        typeMesure: FREQUENCE_CARDIAQUE
+        valeurMin: 60
+        valeurMax: 100
+    createPatientThreshold201:
+      value:
+        seuilId: seuil-001
+        patientId: patient-001
+        typeMesure: FREQUENCE_CARDIAQUE
+        valeurMin: 60
+        valeurMax: 100
+        actif: true
+    updatePatientThresholdRequest:
+      value:
+        valeurMin: 55
+        valeurMax: 110
+        actif: true
+    updatePatientThreshold200:
+      value:
+        seuilId: seuil-001
+        patientId: patient-001
+        typeMesure: FREQUENCE_CARDIAQUE
+        valeurMin: 55
+        valeurMax: 110
+        actif: true
     PreconditionFailed:
       summary: Réponse d’erreur illustrative
       value:
