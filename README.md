@@ -16,7 +16,7 @@ Dans ce projet, les montres sont simulées et toutes les données de santé sont
 
 Toutes les minutes, le simulateur envoie un lot pour un patient à `POST /measurements`. Le lot contient `patientId`, un identifiant unique `batchId` et un tableau non vide `measurements`. Chaque relevé comprend un horodatage, une fréquence cardiaque, une SpO₂ et le nombre de pas depuis le relevé précédent.
 
-L’API devra vérifier l’identité et les droits de l’émetteur, puis valider le lot entier : un relevé invalide entraîne son rejet complet. L’enregistrement est atomique, et un `batchId` déjà enregistré est refusé avec `409`, même si son contenu est identique.
+L’API devra vérifier l’identité et les droits de l’émetteur, puis valider le lot entier. L’enregistrement est atomique : toutes les mesures sont enregistrées ou aucune. Un relevé invalide entraîne le rejet complet ; un `batchId` déjà enregistré donne `409`, même si son contenu est identique.
 
 Les mesures seront comparées aux seuils applicables du patient. Chaque seuil définit un minimum et un maximum pour un type de mesure ; un seul seuil actif est autorisé par patient et par type. Un dépassement crée une alerte `ACTIVE`, liée à la mesure et au seuil concernés.
 
@@ -32,7 +32,7 @@ La notification push prévue contiendra un message générique, sans donnée de 
 
 Le sujet prévoit également un **webhook signé pour l’intégration IoT**. Son contrat et son articulation avec la notification push restent à définir ; aucun mécanisme de livraison n’est encore implémenté.
 
-Les échanges JSON sont détaillés dans les guides [Mesures](docs/contrats/mesures.md), [Seuils](docs/contrats/seuils.md) et [Alertes](docs/contrats/alertes.md).
+Les échanges JSON sont détaillés dans les guides [Mesures](openapi/measurements/guide.md), [Seuils](openapi/thresholds/guide.md) et [Alertes](openapi/alerts/guide.md).
 
 ### Suivi, consentement et accès aux données
 
@@ -51,12 +51,12 @@ flowchart TD
 
 Les principes d’accès retenus sont :
 
-- **OAuth 2.0 avec JWT**, avec des scopes distincts pour les montres, les patients et les soignants. Le backend devra vérifier les jetons, les permissions et les droits sur chaque objet.
+- **OAuth 2.0 avec JWT** : des jetons d’accès signés identifient l’appelant et portent ses permissions. Les scopes, distincts pour montre, patient et soignant, indiquent les opérations autorisées ; le backend devra aussi vérifier les droits sur chaque objet.
 - Un soignant accède uniquement aux données de ses patients, avec un consentement valide à chaque accès concerné. Les collections restent limitées aux objets accessibles, quels que soient les filtres transmis.
 - `401` signale une authentification absente ou invalide ; `403`, un rôle ou scope insuffisant ; `404`, un objet inexistant ou hors du périmètre autorisé.
 - Les réponses contiennent uniquement les données nécessaires et les logs ne doivent contenir aucune donnée de santé.
 
-Le détail du contrôle du consentement reste à harmoniser sur certaines opérations. Les formats JSON encore ouverts, les modalités OAuth et les autres décisions à valider sont recensés dans la [conception](docs/design.md#8-décisions-restant-à-clarifier). Le guide [Consentements](docs/contrats/consentements.md) précise les deux opérations du patient.
+Le détail du contrôle du consentement reste à harmoniser sur certaines opérations. Les formats JSON encore ouverts, les modalités OAuth et les autres décisions à valider sont recensés dans la [conception](docs/design.md#8-décisions-restant-à-clarifier). Le guide [Consentements](openapi/consents/guide.md) précise les deux opérations du patient.
 
 ## 2. Équipe
 
@@ -94,7 +94,7 @@ Le backend utilise par défaut `http://localhost:3000` (`GET /` répond actuelle
 
 **Conception disponible :** MCD, contrats OpenAPI, guides métier et mocks Prism. Certains formats JSON et arbitrages restent ouverts ; un mock ne prouve pas que les règles métier fonctionnent dans le backend.
 
-**Socle préparé :** serveur NestJS avec six modules, Controllers et Services préparatoires, validation globale, connexion PostgreSQL configurée via TypeORM et Docker Compose pour les deux services. Aucune entité métier n’est encore enregistrée ; les migrations métier restent des squelettes.
+**Socle préparé :** serveur NestJS avec six modules, Controllers et Services préparatoires, validation globale, connexion PostgreSQL via TypeORM et Docker Compose. Aucune Entity métier n’est encore enregistrée. Les migrations Patients, Seuils et Consentements contiennent leur SQL ; les trois autres restent à compléter. L’application des migrations se vérifie sur chaque base avec le [guide Docker](docs/docker.md#migrations-typeorm).
 
 **À implémenter :** simulateur, réception et stockage des lots, consultations, seuils, alertes, consentements, notifications et webhook signé. **OAuth 2.0/JWT et les contrôles d’accès restent à intégrer**, selon les [principes de sécurité](docs/design.md#7-sécurité).
 
@@ -107,16 +107,23 @@ Repères principaux (arborescence abrégée) :
 ├── backend/                   # API NestJS, persistance et tests
 ├── bruno/                     # Exercices TP1 et requêtes du mock TP3
 ├── docs/
-│   ├── contrats/              # Guides métier et contrat de cache HTTP
 │   ├── tests/                 # Guide de préparation Schemathesis
-│   ├── images/                # MCD, diagramme REST et captures
+│   ├── images/                # MCD, MLD, MPD, diagramme REST et captures
 │   ├── design.md              # Architecture, MCD et décisions
 │   ├── api.md                 # Opérations et règles API
 │   └── api-review.md          # Réponses HTTP et points ouverts
 ├── openapi/
 │   ├── openapi.yaml           # Point d’entrée du contrat
-│   ├── paths/                 # Opérations par domaine
-│   ├── components/            # Schémas, erreurs, sécurité et cache partagés
+│   ├── measurements/          # Mesures : opérations, composants et guide
+│   ├── patients/              # Patients
+│   ├── thresholds/            # Seuils
+│   ├── alerts/                # Alertes
+│   ├── consents/              # Consentements
+│   ├── caregivers/            # Guide Soignant, sans endpoint dédié
+│   ├── common/                # Définitions partagées
+│   ├── security/              # Authentification
+│   ├── cache/                 # Contrat du cache HTTP des seuils
+│   ├── architecture-api.md    # Navigation et responsabilités
 │   ├── openapi.bundle.yaml    # Contrat regroupé, généré
 │   └── .spectral.yaml         # Règles de validation
 ├── compose.yaml              # Backend et PostgreSQL
@@ -126,8 +133,8 @@ Repères principaux (arborescence abrégée) :
 ```
 
 - **Backend :** les six ressources sont dans [backend/src/features/](backend/src/features/), les migrations dans [backend/src/persistence/migrations/](backend/src/persistence/migrations/) et les tests HTTP dans [backend/test/e2e/](backend/test/e2e/). Le dossier [backend/test/integration/](backend/test/integration/) ne contient pas encore de tests métier.
-- **Documentation :** [docs/contrats/](docs/contrats/) regroupe les échanges par domaine ; [docs/tests/](docs/tests/) prépare les tests et [docs/images/](docs/images/) conserve les diagrammes et captures. Les accès détaillés sont regroupés par TP ci-dessous.
-- **Sources OpenAPI :** [openapi/openapi.yaml](openapi/openapi.yaml), [paths/](openapi/paths/) et [components/](openapi/components/) sont reliés par des `$ref`. Le [bundle](openapi/openapi.bundle.yaml) est généré ; il ne doit pas être modifié manuellement.
+- **Documentation :** chaque ressource dans [openapi/](openapi/) possède son guide métier ; [docs/tests/](docs/tests/) prépare les tests et [docs/images/](docs/images/) conserve les modèles et captures.
+- **Sources OpenAPI :** le [fichier parent](openapi/openapi.yaml) référence les opérations et composants classés par ressource. Les définitions transversales sont dans `common/`, `security/` et `cache/`. Le [guide d’architecture](openapi/architecture-api.md) explique où intervenir ; le [bundle](openapi/openapi.bundle.yaml) est généré.
 - **Infrastructure :** [compose.yaml](compose.yaml) et [compose.migrations.yaml](compose.migrations.yaml) sont expliqués dans le [guide Docker](docs/docker.md). Les contributions de l’IA sont déclarées dans [IA.md](IA.md).
 
 ## 5. TP1 — Initialisation et découverte HTTP
@@ -150,7 +157,7 @@ Les livrables du TP2 sont :
 - **MLD — Modèle logique des données** : [Voir le MLD de Veillo](docs/images/Sch%C3%A9ma%20relationnel%20MLD%20%E2%80%94%20Veillo.png)
 - **MPD — Modèle physique des données** : [Voir le MPD de Veillo](docs/images/Sch%C3%A9ma%20MPD%20relationnel%20Veillo.png)
 
-Guides métier : [Mesures](docs/contrats/mesures.md), [Patients](docs/contrats/patients.md), [Alertes](docs/contrats/alertes.md), [Consentements](docs/contrats/consentements.md), [Seuils](docs/contrats/seuils.md) et [Soignant](docs/contrats/soignant.md).
+Guides métier : [Mesures](openapi/measurements/guide.md), [Patients](openapi/patients/guide.md), [Alertes](openapi/alerts/guide.md), [Consentements](openapi/consents/guide.md), [Seuils](openapi/thresholds/guide.md) et [Soignant](openapi/caregivers/guide.md).
 
 Consigne complémentaire du support de cours : fonction principale `nommerRessourcePilote`, référence à la note interne **NC-102**. Cette mention ne correspond pas à une fonction actuellement implémentée ; la nécessité de son implémentation reste à vérifier dans le support.
 
@@ -158,7 +165,7 @@ Consigne complémentaire du support de cours : fonction principale `nommerRessou
 
 Les livrables du TP3 sont :
 
-- **Contrat OpenAPI** : [fichier parent](openapi/openapi.yaml), [opérations par domaine](openapi/paths/) et [composants réutilisables](openapi/components/)
+- **Contrat OpenAPI** : [fichier parent](openapi/openapi.yaml) et [architecture par ressource](openapi/architecture-api.md)
 - **Bundle généré** : [openapi/openapi.bundle.yaml](openapi/openapi.bundle.yaml)
 - **Organisation et commandes des outils** : [docs/outillage-tp3.md](docs/outillage-tp3.md)
 - **Règles Spectral** : [openapi/.spectral.yaml](openapi/.spectral.yaml)
@@ -194,7 +201,7 @@ Les tests métier et le workflow CI restent à développer.
 
 Le contrat des requêtes conditionnelles est défini ; son implémentation reste à réaliser.
 
-- **Guide central du cache HTTP** : [docs/contrats/cache.md](docs/contrats/cache.md)
-- **Composants OpenAPI partagés** : [openapi/components/cache.yaml](openapi/components/cache.yaml)
-- **Opérations concernées** : [openapi/paths/seuils.yaml](openapi/paths/seuils.yaml)
+- **Guide central du cache HTTP** : [openapi/cache/guide.md](openapi/cache/guide.md)
+- **Composants du cache** : [openapi/cache/components/](openapi/cache/components/)
+- **Opérations concernées** : [openapi/thresholds/paths/seuils.yaml](openapi/thresholds/paths/seuils.yaml)
 - **Espace de travail et tests à compléter** : [backend/src/common/cache/](backend/src/common/cache/), avec son [guide de développement](backend/src/common/cache/README.md)

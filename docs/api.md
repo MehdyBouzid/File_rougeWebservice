@@ -6,18 +6,18 @@ Cette vue d’ensemble décrit les opérations et traitements prévus, encore à
 
 Les guides métier détaillent les JSON, exemples et décisions ouvertes :
 
-- [Mesures : ingestion IoT et consultation](contrats/mesures.md).
-- [Patients](contrats/patients.md).
-- [Alertes](contrats/alertes.md).
-- [Consentements](contrats/consentements.md).
-- [Seuils](contrats/seuils.md), dont ETag et requêtes conditionnelles.
-- [Cache HTTP et requêtes conditionnelles](contrats/cache.md), limité aux seuils.
+- [Mesures : ingestion IoT et consultation](../openapi/measurements/guide.md).
+- [Patients](../openapi/patients/guide.md).
+- [Alertes](../openapi/alerts/guide.md).
+- [Consentements](../openapi/consents/guide.md).
+- [Seuils](../openapi/thresholds/guide.md), dont ETag et requêtes conditionnelles.
+- [Cache HTTP et requêtes conditionnelles](../openapi/cache/guide.md), limité aux seuils.
 
 ## Règles d’accès communes
 
 - `401` : authentification absente ou invalide.
-- `403` : appelant authentifié dont le rôle ou le scope est insuffisant (BFLA). Les trois types de clients ont des scopes distincts : **montre** pour l’ingestion, **patient** pour les consentements, **soignant** pour les patients, mesures, alertes et seuils. Les noms exacts sont provisoires.
-- `404` : objet inexistant ou hors du périmètre autorisé de l’appelant (BOLA), en lecture comme en écriture. Un soignant n’accède qu’à ses patients ; un patient non suivi, un seuil d’un autre patient ou le consentement d’un autre patient sont traités comme inexistants.
+- `403` : appelant authentifié dont le rôle ou le scope est insuffisant. Ce contrôle porte sur le droit d’appeler l’opération (BFLA). Les clients ont des scopes distincts : **montre** pour l’ingestion, **patient** pour les consentements, **soignant** pour les patients, mesures, alertes et seuils. Les noms exacts sont provisoires.
+- `404` : objet inexistant ou hors du périmètre autorisé, en lecture comme en écriture. Ce contrôle porte sur l’objet demandé (BOLA) : un patient non suivi, un seuil d’un autre patient ou le consentement d’un autre patient sont traités comme inexistants.
 - Les collections ne retournent que les objets accessibles, quels que soient les filtres transmis (liste vide en `200` pour un filtre hors périmètre).
 - Le consentement du patient est vérifié à chaque accès concerné ; son périmètre par opération reste à valider. Là où il est exigé, son absence ou son retrait donne `404`.
 
@@ -92,7 +92,7 @@ Récupérer les mesures d’un patient sur une période donnée pour suivre leur
 
 **Données retournées**
 
-Horodatage, fréquence cardiaque, SpO₂, pas et pagination : page actuelle, taille et total de pages. L’enveloppe JSON reste à définir ; voir le [guide des mesures](contrats/mesures.md#5-consulter-les-mesures-dun-patient).
+Horodatage, fréquence cardiaque, SpO₂, pas et pagination : page actuelle, taille et total de pages. L’enveloppe JSON reste à définir ; voir le [guide des mesures](../openapi/measurements/guide.md#5-consulter-les-mesures-dun-patient).
 
 **Traitement côté API**
 
@@ -118,7 +118,7 @@ Afficher les patients suivis par le soignant connecté.
 
 **Données retournées**
 
-Identifiant, nom, prénom, date de naissance et informations de pagination. Le JSON reste à définir dans le [guide Patients](contrats/patients.md).
+Identifiant, nom, prénom, date de naissance et informations de pagination. Le JSON reste à définir dans le [guide Patients](../openapi/patients/guide.md).
 
 **Traitement côté API**
 
@@ -171,7 +171,7 @@ Afficher les alertes des patients suivis, qu’elles soient actives ou déjà tr
 
 **Données retournées**
 
-Identifiants de l’alerte et du patient, nom et prénom du patient, type de mesure, horodatage et statut. Voir `AlertSummary` dans le [guide Alertes](contrats/alertes.md#lister-les-alertes).
+Identifiants de l’alerte et du patient, nom et prénom du patient, type de mesure, horodatage et statut. Voir `AlertSummary` dans le [guide Alertes](../openapi/alerts/guide.md#lister-les-alertes).
 
 **Traitement côté API**
 
@@ -197,7 +197,7 @@ Consulter les détails d’une alerte pour identifier le patient concerné et la
 
 **Données retournées**
 
-Identifiants de l’alerte et du patient, type de mesure, valeur mesurée, valeur du seuil, horodatage et statut. Le [guide Alertes](contrats/alertes.md#lire-une-alerte) décrit `AlertDetail` et les interprétations encore proposées.
+Identifiants de l’alerte et du patient, type de mesure, valeur mesurée, valeur du seuil, horodatage et statut. Le [guide Alertes](../openapi/alerts/guide.md#lire-une-alerte) décrit `AlertDetail` et les interprétations encore proposées.
 
 **Traitement côté API**
 
@@ -272,7 +272,7 @@ Aucun.
 
 **Données retournées**
 
-Identifiant du consentement, identifiant du soignant, date de début, date de fin si renseignée et état. Le JSON et les règles de dates restent à définir : voir le [guide Consentements](contrats/consentements.md).
+Identifiant du consentement, identifiant du soignant, date de début, date de fin si renseignée et état. Le JSON et les règles de dates restent à définir : voir le [guide Consentements](../openapi/consents/guide.md).
 
 **Traitement côté API**
 
@@ -386,7 +386,7 @@ Les trois propriétés sont obligatoires, non nulles, sans propriété suppléme
 2. Vérifier que le patient existe et que le soignant connecté le suit ; sinon `404`. Le consentement reste à valider.
 3. Valider les données et vérifier `valeurMin <= valeurMax`, égalité autorisée.
 4. Vérifier qu'aucun seuil actif du même type n'existe déjà pour ce patient. Si c'est le cas, refuser la création (`409`) : un seul seuil actif est autorisé par patient et par type de mesure.
-5. Enregistrer le nouveau seuil actif et retourner sa représentation `Threshold` avec les en-têtes `Location` (GET individuel) et `ETag`, selon le [guide des seuils](contrats/seuils.md).
+5. Enregistrer le nouveau seuil actif et retourner sa représentation `Threshold` avec les en-têtes `Location` (GET individuel) et `ETag`, selon le [guide des seuils](../openapi/thresholds/guide.md).
 
 ---
 
@@ -424,7 +424,7 @@ Seuls les champs à modifier sont transmis, avec au moins un champ. Les corps vi
    - L'activation est refusée si un autre seuil actif du même type existe déjà.
    - La désactivation conserve le seuil dans l'historique.
 
-La réponse contient `Threshold` et son nouvel `ETag`. Le [guide des seuils](contrats/seuils.md#requêtes-conditionnelles-etag) détaille l’écriture future en transaction (`FOR UPDATE`, index unique partiel) ; rien de cela n’est implémenté.
+La réponse prévue contient `Threshold` et son `ETag`. Le [guide des seuils](../openapi/thresholds/guide.md#requêtes-conditionnelles-etag) décrit la transaction applicative à développer (`FOR UPDATE`) et l’index unique partiel déjà défini dans la migration. Le traitement HTTP et le calcul d’ETag restent à implémenter.
 
 ---
 

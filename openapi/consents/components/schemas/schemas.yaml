@@ -1,0 +1,3 @@
+ConsentList:
+  description: "Consentements du patient connecté : identifiant, soignant, dates et état. Format de
+    liste, valeurs de l’état, présence et nullabilité de la date de fin à définir."

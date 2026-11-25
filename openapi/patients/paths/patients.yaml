@@ -1,0 +1,50 @@
+collection:
+  get:
+    tags:
+      - Patients
+    operationId: listPatients
+    summary: Afficher les patients suivis par le soignant connecté.
+    description: Scope soignant requis (403 sinon). La collection ne contient que les patients
+      accessibles au soignant connecté ; un patient non suivi n’apparaît jamais. Le contrôle du
+      consentement reste à valider ; s’il est retenu, les patients sans consentement valide sont
+      aussi exclus.
+    x-caller: soignant
+    security:
+      - bearerAuth:
+          - soignant
+    responses:
+      "200":
+        $ref: ../components/responses/responses.yaml#/listPatients200
+      "400":
+        $ref: ../components/responses/responses.yaml#/listPatients400
+      "401":
+        $ref: ../../common/components/responses/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../../common/components/responses/responses.yaml#/Forbidden
+    parameters:
+      - $ref: ../../common/components/parameters/parameters.yaml#/page
+      - $ref: ../../common/components/parameters/parameters.yaml#/size
+item:
+  get:
+    tags:
+      - Patients
+    operationId: getPatient
+    summary: Consulter les informations d’un patient suivi.
+    description: Scope soignant requis (403 sinon). Le patient doit exister et être suivi par le
+      soignant ; sinon 404, sans distinguer les deux cas (BOLA). Le contrôle du consentement reste à
+      valider ; s’il est retenu, son absence ou son retrait renvoie aussi 404.
+    x-caller: soignant
+    security:
+      - bearerAuth:
+          - soignant
+    responses:
+      "200":
+        $ref: ../components/responses/responses.yaml#/getPatient200
+      "401":
+        $ref: ../../common/components/responses/responses.yaml#/Unauthorized
+      "403":
+        $ref: ../../common/components/responses/responses.yaml#/Forbidden
+      "404":
+        $ref: ../../common/components/responses/responses.yaml#/PatientNotFound
+    parameters:
+      - $ref: ../../common/components/parameters/parameters.yaml#/patientId

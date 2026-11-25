@@ -1,0 +1,42 @@
+patientId:
+  name: patientId
+  in: path
+  required: true
+  description: Identifiant de la ressource demandée.
+  schema:
+    $ref: ../schemas/schemas.yaml#/Identifier
+  example: "42"
+startDate:
+  name: startDate
+  in: query
+  required: false
+  description: Début de période ; format, bornes et période par défaut à valider.
+  schema:
+    type: string
+    description: Horodatage ; format et fuseau définitifs à valider. Les exemples utilisent ISO 8601 UTC.
+  example: 2026-10-01T00:00:00Z
+endDate:
+  name: endDate
+  in: query
+  required: false
+  description: Fin de période ; format, bornes et période par défaut à valider.
+  schema:
+    type: string
+    description: Horodatage ; format et fuseau définitifs à valider. Les exemples utilisent ISO 8601 UTC.
+  example: 2026-10-31T00:00:00Z
+page:
+  name: page
+  in: query
+  description: Numéro de page à partir de zéro.
+  schema:
+    type: integer
+    minimum: 0
+    default: 0
+size:
+  name: size
+  in: query
+  description: Nombre de résultats par page ; une valeur supérieure à 100 est refusée.
+  schema:
+    type: integer
+    maximum: 100
+    default: 50

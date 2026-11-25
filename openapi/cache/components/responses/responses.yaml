@@ -1,0 +1,26 @@
+PreconditionFailed:
+  description: If-Match ne correspond pas à l’ETag courant du seuil, car il a été modifié depuis sa
+    lecture. Le client relit le seuil (GET) avant de réessayer. Évaluée après 401, 403, 404 et 428.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../examples/examples.yaml#/PreconditionFailed
+PreconditionRequired:
+  description: L’en-tête If-Match est absent alors que la modification du seuil l’exige. Évaluée après
+    401, 403 et 404, avant 412.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../examples/examples.yaml#/PreconditionRequired
+NotModified:
+  description: Le seuil n’a pas changé depuis l’ETag fourni dans If-None-Match ; aucun corps n’est
+    renvoyé. L’ETag est répété dans la réponse.
+  headers:
+    ETag:
+      $ref: ../headers/headers.yaml#/ETag

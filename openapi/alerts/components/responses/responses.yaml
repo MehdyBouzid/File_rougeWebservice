@@ -1,0 +1,64 @@
+AlertNotFound:
+  description: Alerte inexistante ou hors du périmètre autorisé de l’appelant (BOLA), notamment si
+    elle concerne un patient non suivi par le soignant ou si le consentement valide exigé est absent
+    ou retiré. Les cas ne sont pas distinguables dans la réponse.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/NotFound
+listAlerts200:
+  description: Les alertes des patients suivis sont récupérées selon les filtres et la pagination
+    demandés. Chaque élément est décrit par AlertSummary ; l’enveloppe paginée reste ouverte.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/AlertPage
+listAlerts400:
+  description: Les filtres ou les paramètres de pagination sont invalides ; la taille maximale
+    documentée est de 100 alertes.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/BadRequest
+getAlert200:
+  description: Les détails de l’alerte demandée sont récupérés.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/AlertDetail
+      examples:
+        exemple:
+          $ref: ../examples/examples.yaml#/getAlert200
+acknowledgeAlert200:
+  description: L’alerte a été marquée `TRAITEE`.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/AlertDetail
+      examples:
+        exemple:
+          $ref: ../examples/examples.yaml#/acknowledgeAlert200
+acknowledgeAlert400:
+  description: Le statut transmis est invalide ; la valeur de mise à jour prévue est `TRAITEE`.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/BadRequest
+acknowledgeAlert409:
+  description: L’alerte est déjà traitée ou la transition de statut demandée est interdite.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/Conflict

@@ -1,0 +1,8 @@
+ETag:
+  description: Validateur fort de la représentation du seuil, calculé par le backend à partir de sa
+    représentation complète. Valeur opaque entre guillemets, à renvoyer telle quelle dans If-Match
+    ou If-None-Match ; le client ne doit pas l’interpréter.
+  required: true
+  schema:
+    type: string
+  example: '"4b1f0c9e7a3d2e58"'

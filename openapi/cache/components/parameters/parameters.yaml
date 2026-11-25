@@ -1,0 +1,19 @@
+ifMatch:
+  name: If-Match
+  in: header
+  required: false
+  description: ETag du seuil lu précédemment. Exigé par le backend ; son absence donne 428 et une
+    valeur qui ne correspond plus à l’état courant donne 412. Déclaré facultatif ici pour que 428
+    reste atteignable, sinon un outil de validation rejetterait la requête avant le backend.
+  schema:
+    type: string
+  example: '"4b1f0c9e7a3d2e58"'
+ifNoneMatch:
+  name: If-None-Match
+  in: header
+  required: false
+  description: ETag déjà détenu par le client. S’il correspond à l’état courant, la réponse est 304
+    sans corps (comparaison faible, RFC 9110).
+  schema:
+    type: string
+  example: '"4b1f0c9e7a3d2e58"'

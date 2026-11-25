@@ -1,15 +1,23 @@
 # Backend Veillo — Infrastructure NestJS
 
-Les six modules métier sont enregistrés dans `AppModule`. Les Controllers délèguent aux Services ; aucune route ni règle métier n’est implémentée par ce squelette.
+Ce guide explique où développer et comment lancer le socle. Les six ressources sont enregistrées dans `AppModule` ; leurs Controllers et Services ne portent encore aucune route ni règle métier.
 
-- Mehdy : `patients`, `thresholds`, `consents`.
-- Ethan : `measurements`, `alerts`, `caregivers`.
+- **Mehdy :** `patients`, `thresholds` et `consents`.
+- **Ethan :** `measurements`, `alerts` et `caregivers`.
 
-## Démarrer et vérifier
+Les [choix techniques](../CHOIX_TECHNIQUES.md) expliquent les couches. Les [guides métier](../openapi/architecture-api.md) et les [sources OpenAPI](../openapi/openapi.yaml) définissent les échanges à respecter.
 
-Toutes les commandes ci-dessous se lancent depuis la racine du dépôt. Les consultations ont été vérifiées ; installation, démarrage, arrêt, build et tests ne sont pas exécutés lors de cet audit. Voir [le détail des vérifications](../docs/docker.md#10-état-actuel-et-limites).
+## Prérequis
 
-Avec Docker Desktop démarré (commandes de mise en route, non exécutées pendant cet audit) :
+Toutes les commandes partent de la racine du dépôt.
+
+- **Avec Docker :** Docker Desktop démarré et `.env` renseigné.
+- **Hors conteneur :** Node.js 22, npm et PostgreSQL démarré.
+- Conserver le `.env` existant ; [.env.example](../.env.example) décrit les variables sans secret réel.
+
+## Démarrer avec Docker
+
+Créer `.env` seulement s’il manque, renseigner `DB_PASSWORD`, puis construire et démarrer les services :
 
 ```bash
 [ -f .env ] || cp .env.example .env
@@ -17,9 +25,13 @@ Avec Docker Desktop démarré (commandes de mise en route, non exécutées penda
 docker compose up -d --build
 ```
 
-Si `.env` existe déjà, le conserver. Les ports hôtes sont configurables dans ce fichier. Les commandes, la connexion et les migrations sont détaillées dans [Infrastructure Docker](../docs/docker.md).
+Le backend utilise le port hôte `BACKEND_PORT`, par défaut `3000`. Sans route métier déclarée, `GET /` répond `404`.
 
-Pour développer hors conteneur avec Node.js 22, PostgreSQL doit rester démarré. Arrêter seulement le backend Docker avant de réutiliser son port HTTP (commandes non exécutées pendant cet audit) :
+Les ports, logs, accès PostgreSQL et migrations sont centralisés dans le [guide Docker](../docs/docker.md).
+
+## Développer hors conteneur
+
+PostgreSQL reste démarré. Arrêter seulement le backend Docker avant de réutiliser son port, puis installer les dépendances et lancer NestJS :
 
 ```bash
 docker compose stop backend
@@ -28,7 +40,56 @@ npm --prefix backend run persistence:sync
 (cd backend && node --env-file=../.env node_modules/@nestjs/cli/bin/nest.js start --watch)
 ```
 
-Le serveur utilise `PORT`, ou 3000 par défaut. Sans route déclarée, `/` répond 404.
+Cette commande charge le `.env` racine. Depuis l’hôte, `DB_HOST` et `DB_PORT` ciblent PostgreSQL via son port publié ; dans Docker, Compose fournit `postgres:5432`. NestJS écoute sur `PORT`, ou `3000` par défaut.
+
+## Travailler dans une ressource
+
+```text
+HTTP → Controller → Service → Repository → PostgreSQL
+```
+
+- `controllers/` : déclarer les routes et déléguer au Service.
+- `services/` : appliquer les règles métier et coordonner les accès.
+- `dto/` : décrire et valider les données échangées.
+- `entities/` : représenter les tables et relations validées.
+- `repositories/` : réserver les classes personnalisées aux requêtes spécifiques.
+
+Les modules exportent leur Service. Ajouter un Controller, un provider ou une dépendance entre ressources peut nécessiter une modification du module ; vérifier alors les imports et les risques de dépendance circulaire.
+
+### Validation des entrées
+
+Le [ValidationPipe global](src/validation.pipe.ts) est déjà raccordé dans [main.ts](src/main.ts). Les futurs DTO d’entrée utiliseront les décorateurs `class-validator` ; une classe TypeScript seule ne suffit pas.
+
+La configuration rejette les propriétés inconnues (`whitelist` et `forbidNonWhitelisted`), active `transform` et désactive les conversions implicites. Le format d’erreur `application/problem+json` reste un chantier séparé.
+
+## Enregistrement des entités
+
+Le [registre généré](src/persistence/feature-entities.generated.ts) alimente `TypeOrmModule.forFeature(...)` dans chaque ressource. Ses six listes sont vides : les classes préparatoires ne sont pas décorées et aucun repository métier n’est injecté.
+
+Le [générateur](scripts/sync-feature-entities.mjs) recherche les fichiers `*.entity.ts`, y compris dans les sous-dossiers. Il reconnaît les classes avec export nommé et décorateur `@Entity()` ou `@ViewEntity()`, importé par nom depuis `typeorm` ; les alias d’import sont acceptés.
+
+Après ajout ou renommage d’une Entity pendant le mode watch :
+
+```bash
+npm --prefix backend run persistence:sync
+npm --prefix backend run persistence:check
+```
+
+`sync` écrit le registre si nécessaire ; `check` vérifie sans écrire. Redémarrer ensuite le serveur. Modifier les champs d’une Entity déjà enregistrée ne demande pas de modifier les modules.
+
+Les hooks de `build`, `start`, `start:dev` et `test` synchronisent aussi le registre. Ne pas l’éditer à la main : le script lit les sources sans les exécuter et ne crée aucune table.
+
+Le mécanisme couvre les six ressources et la connexion par défaut. `EntitySchema`, imports namespace, connexions nommées et réexports ne sont pas pris en charge.
+
+## PostgreSQL et migrations
+
+[DatabaseModule](src/persistence/database.module.ts) et le pilote `pg` configurent la connexion. Le registre vide ne signifie pas que la base est vide : les tables sont créées par les migrations, indépendamment des Entities.
+
+Le SQL de Patients, Seuils et Consentements est présent ; les autres migrations restent à compléter. Consentements nécessite les tables Patient et Soignant. Vérifier les dépendances et l’historique local avant toute application.
+
+La configuration partagée conserve `synchronize: false` et `migrationsRun: false`. Le [guide des migrations](../docs/docker.md#migrations-typeorm) explique création, génération, statut et application.
+
+## Build et tests
 
 ```bash
 npm --prefix backend run build
@@ -36,36 +97,13 @@ npm --prefix backend test
 npm --prefix backend run test:infrastructure
 ```
 
-## Enregistrement des entités
+Ces commandes doivent terminer sans erreur. Examiner les suites et le nombre de tests : `test:integration` utilise `--passWithNoTests` et peut réussir sans test métier.
 
-`@nestjs/typeorm` et `typeorm` sont installés. Chaque module importe `TypeOrmModule.forFeature(...)` avec son entrée du registre `src/persistence/feature-entities.generated.ts`. Les listes sont actuellement vides : aucun repository métier n’est créé.
+Les tests unitaires et HTTP du squelette remplacent le module de connexion pour rester indépendants de PostgreSQL. Ils ne prouvent pas la persistance. Les tests d’écriture sur le backend nécessiteront une base isolée ; voir [Schemathesis](../docs/tests/schemathesis.md#passer-au-backend-nestjs).
 
-Le registre est généré depuis les dossiers `src/features/<ressource>/entities/`. `persistence:check` a été testé en lecture seule ; `persistence:sync` écrit le registre et n’a pas été exécuté pendant cet audit :
+## Consultation et preuves historiques
 
-```bash
-npm --prefix backend run persistence:sync
-npm --prefix backend run persistence:check
-```
-
-Le générateur lit les fichiers `*.entity.ts`, y compris les sous-dossiers. Il reconnaît les classes exportées par leur nom et décorées avec `@Entity()` ou `@ViewEntity()`, via un import nommé depuis `typeorm` (alias d’import accepté). Il n’exécute pas les fichiers et ne crée aucune entité.
-
-Depuis la racine, les hooks de `npm --prefix backend run build`, `npm --prefix backend start`, `npm --prefix backend run start:dev` et `npm --prefix backend test` synchronisent le registre. Après l’ajout ou le renommage d’une entité pendant le mode watch, relancer `npm --prefix backend run persistence:sync` puis redémarrer le serveur. Les modifications des champs d’une entité déjà enregistrée ne demandent pas de modifier les modules.
-
-Le fichier généré ne doit pas être édité manuellement. Le périmètre reste limité aux six ressources existantes et à la source de données TypeORM par défaut. Les `EntitySchema`, imports namespace, connexions nommées et réexports d’entités ne sont pas pris en charge par ce générateur.
-
-## Connexion PostgreSQL et migrations
-
-Le pilote `pg` et le module central `DatabaseModule` configurent désormais la connexion avec les variables d’environnement. Dans Compose, le backend utilise `postgres:5432` ; depuis la machine hôte, les paramètres sont ceux du `.env` local.
-
-Le registre reste vide : les classes préparatoires non décorées ne sont pas enregistrées. Aucune table métier n’est créée. Les futures entités devront comporter leurs colonnes et leur clé primaire validées avant l’ajout de `@Entity()`.
-
-La configuration commune à NestJS et à la CLI TypeORM conserve `synchronize: false` et `migrationsRun: false`. Les migrations seront générées puis relues et appliquées explicitement ; voir [la procédure](../docs/docker.md#migrations-typeorm).
-
-Les tests unitaires et le test HTTP du squelette remplacent uniquement le module de connexion pour rester indépendants de PostgreSQL. Ils ne constituent pas une preuve de persistance.
-
-## Consulter l’environnement existant
-
-Commandes vérifiées sans changement de données :
+Les commandes suivantes ont été consignées dans un audit antérieur comme consultations sans changement de données. Elles n’ont pas été rejouées pour cette révision :
 
 ```bash
 docker compose config --quiet
@@ -77,16 +115,8 @@ npm --prefix backend run migration:check
 docker compose exec -T -e PGOPTIONS='-c default_transaction_read_only=on' backend npm run migration:show
 ```
 
-Le backend répond sur `http://127.0.0.1:3000` et PostgreSQL sur `127.0.0.1:55432`. Les sources contiennent six squelettes non exécutables avant complétion ; le conteneur actuel n’en contient aucun compilé. Un statut vide dans ce conteneur ne signifie pas que les sources sont vides. Aucun rebuild ni migration n’a été lancé pendant cet audit.
+`exec backend` nécessite un conteneur backend démarré et une image à jour. Un ancien audit utilisait une image sans migrations compilées : un statut vide ne prouve pas l’absence de fichiers sources.
 
-## Travailler dans une ressource
+En lecture seule, TypeORM peut échouer si l’historique `veillo_migrations` n’existe pas encore et qu’il tente de le créer. Les commandes usuelles et leurs prérequis figurent dans le [guide Docker](../docs/docker.md#10-état-actuel-et-limites).
 
-- `controllers/` : endpoints HTTP et délégation aux Services.
-- `services/` : règles métier et collaboration avec la persistance.
-- `entities/` : véritables classes persistées, avec les décorateurs TypeORM définis à partir du modèle validé.
-- `dto/` : données d’entrée et validation ; un DTO ne constitue pas automatiquement une entité de stockage.
-- `repositories/` : réservé aux besoins spécifiques. Utiliser d’abord les repositories standards de TypeORM, injectés dans le Service une fois une vraie entité et la connexion disponibles. L’accès aux données ne doit pas porter les règles métier.
-
-Les modules exportent uniquement leur Service existant. Ajouter un nouveau Controller, un provider supplémentaire ou une dépendance entre ressources peut toujours nécessiter une modification du module. Ces cas ne sont pas automatisés et doivent être revus pour éviter les dépendances circulaires.
-
-Les commentaires pédagogiques sont limités aux Controllers et Services d’Ethan. Les explications propres aux futurs DTO, Entities et éventuels repositories personnalisés seront placées lors de leur création ; aucun fichier fictif n’est ajouté pour les accueillir.
+Aucun démarrage, arrêt, build, test applicatif ou migration n’a été exécuté pendant cette révision documentaire.

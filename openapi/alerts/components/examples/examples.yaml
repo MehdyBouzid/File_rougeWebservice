@@ -1,0 +1,22 @@
+getAlert200:
+  value:
+    alertId: alerte-001
+    patientId: patient-001
+    typeMesure: FREQUENCE_CARDIAQUE
+    valeurMesuree: 125
+    valeurSeuil: 110
+    statut: ACTIVE
+    horodatage: 2026-11-20T10:00:00Z
+acknowledgeAlertRequestFictif:
+  summary: Acquitter une alerte
+  value:
+    statut: TRAITEE
+acknowledgeAlert200:
+  value:
+    alertId: alerte-001
+    patientId: patient-001
+    typeMesure: FREQUENCE_CARDIAQUE
+    valeurMesuree: 125
+    valeurSeuil: 110
+    statut: TRAITEE
+    horodatage: 2026-11-20T10:00:00Z

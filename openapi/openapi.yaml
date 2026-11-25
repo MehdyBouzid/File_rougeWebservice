@@ -2,12 +2,11 @@ openapi: 3.1.0
 info:
   title: API Veillo — TP3
   version: 0.1.0
-  description:
-    Contrat de travail fondé sur docs/design.md, docs/api.md et docs/api-review.md ;
-    fonctionnalités métier non implémentées. Seuls les champs et contraintes documentés sont imposés.
-    Les formats JSON non définis restent ouverts (voir x-pending-decisions).
-    Les exemples d’erreur sont fictifs. Prism ne vérifie ni les autorisations,
-    ni les transactions, ni la détection des doublons.
+  description: Contrat de travail fondé sur docs/design.md, docs/api.md et docs/api-review.md ;
+    fonctionnalités métier non implémentées. Seuls les champs et contraintes documentés sont
+    imposés. Les formats JSON non définis restent ouverts (voir x-pending-decisions). Les exemples
+    d’erreur sont fictifs. Prism ne vérifie ni les autorisations, ni les transactions, ni la
+    détection des doublons.
   contact:
     name: Équipe Veillo
 servers:
@@ -28,130 +27,125 @@ tags:
     description: Configuration des seuils des patients.
 security:
   - bearerAuth: []
-
 paths:
   /measurements:
-    $ref: "./paths/measurements.yaml#/ingestion"
+    $ref: ./measurements/paths/measurements.yaml#/ingestion
   /patients/{patientId}/measurements:
-    $ref: "./paths/measurements.yaml#/patientMeasurements"
+    $ref: ./measurements/paths/measurements.yaml#/patientMeasurements
   /patients:
-    $ref: "./paths/patients.yaml#/collection"
+    $ref: ./patients/paths/patients.yaml#/collection
   /patients/{patientId}:
-    $ref: "./paths/patients.yaml#/item"
+    $ref: ./patients/paths/patients.yaml#/item
   /alerts:
-    $ref: "./paths/alerts.yaml#/collection"
+    $ref: ./alerts/paths/alerts.yaml#/collection
   /alerts/{alertId}:
-    $ref: "./paths/alerts.yaml#/item"
+    $ref: ./alerts/paths/alerts.yaml#/item
   /patients/me/consents:
-    $ref: "./paths/consents.yaml#/collection"
+    $ref: ./consents/paths/consents.yaml#/collection
   /patients/me/consents/{consentId}:
-    $ref: "./paths/consents.yaml#/item"
+    $ref: ./consents/paths/consents.yaml#/item
   /patients/{patientId}/seuils:
-    $ref: "./paths/seuils.yaml#/collection"
+    $ref: ./thresholds/paths/seuils.yaml#/collection
   /patients/{patientId}/seuils/{seuilId}:
-    $ref: "./paths/seuils.yaml#/item"
-
+    $ref: ./thresholds/paths/seuils.yaml#/item
 components:
   responses:
     Unauthorized:
-      $ref: "./components/responses.yaml#/Unauthorized"
+      $ref: ./common/components/responses/responses.yaml#/Unauthorized
     Forbidden:
-      $ref: "./components/responses.yaml#/Forbidden"
+      $ref: ./common/components/responses/responses.yaml#/Forbidden
     PatientNotFound:
-      $ref: "./components/responses.yaml#/PatientNotFound"
+      $ref: ./common/components/responses/responses.yaml#/PatientNotFound
     AlertNotFound:
-      $ref: "./components/responses.yaml#/AlertNotFound"
+      $ref: ./alerts/components/responses/responses.yaml#/AlertNotFound
   headers:
     ETag:
-      $ref: "./components/cache.yaml#/headers/ETag"
+      $ref: ./cache/components/headers/headers.yaml#/ETag
   examples:
     BadRequest:
-      $ref: "./components/examples.yaml#/BadRequest"
+      $ref: ./common/components/examples/examples.yaml#/BadRequest
     Unauthorized:
-      $ref: "./components/examples.yaml#/Unauthorized"
+      $ref: ./common/components/examples/examples.yaml#/Unauthorized
     Forbidden:
-      $ref: "./components/examples.yaml#/Forbidden"
+      $ref: ./common/components/examples/examples.yaml#/Forbidden
     NotFound:
-      $ref: "./components/examples.yaml#/NotFound"
+      $ref: ./common/components/examples/examples.yaml#/NotFound
     Conflict:
-      $ref: "./components/examples.yaml#/Conflict"
+      $ref: ./common/components/examples/examples.yaml#/Conflict
   securitySchemes:
     bearerAuth:
-      $ref: "./components/security.yaml#/bearerAuth"
+      $ref: ./security/components/security.yaml#/bearerAuth
   parameters:
     patientId:
-      $ref: "./components/parameters.yaml#/patientId"
+      $ref: ./common/components/parameters/parameters.yaml#/patientId
     alertId:
-      $ref: "./components/parameters.yaml#/alertId"
+      $ref: ./alerts/components/parameters/parameters.yaml#/alertId
     seuilId:
-      $ref: "./components/parameters.yaml#/seuilId"
+      $ref: ./thresholds/components/parameters/parameters.yaml#/seuilId
     consentId:
-      $ref: "./components/parameters.yaml#/consentId"
+      $ref: ./consents/components/parameters/parameters.yaml#/consentId
     ifMatch:
-      $ref: "./components/cache.yaml#/parameters/ifMatch"
+      $ref: ./cache/components/parameters/parameters.yaml#/ifMatch
     ifNoneMatch:
-      $ref: "./components/cache.yaml#/parameters/ifNoneMatch"
+      $ref: ./cache/components/parameters/parameters.yaml#/ifNoneMatch
     startDate:
-      $ref: "./components/parameters.yaml#/startDate"
+      $ref: ./common/components/parameters/parameters.yaml#/startDate
     endDate:
-      $ref: "./components/parameters.yaml#/endDate"
+      $ref: ./common/components/parameters/parameters.yaml#/endDate
     page:
-      $ref: "./components/parameters.yaml#/page"
+      $ref: ./common/components/parameters/parameters.yaml#/page
     size:
-      $ref: "./components/parameters.yaml#/size"
+      $ref: ./common/components/parameters/parameters.yaml#/size
     patientFilter:
-      $ref: "./components/parameters.yaml#/patientFilter"
+      $ref: ./alerts/components/parameters/parameters.yaml#/patientFilter
     status:
-      $ref: "./components/parameters.yaml#/status"
+      $ref: ./alerts/components/parameters/parameters.yaml#/status
   schemas:
     Identifier:
-      $ref: "./components/schemas.yaml#/Identifier"
+      $ref: ./common/components/schemas/schemas.yaml#/Identifier
     Measurement:
-      $ref: "./components/schemas.yaml#/Measurement"
+      $ref: ./measurements/components/schemas/schemas.yaml#/Measurement
     MeasurementBatch:
-      $ref: "./components/schemas.yaml#/MeasurementBatch"
+      $ref: ./measurements/components/schemas/schemas.yaml#/MeasurementBatch
     Patient:
-      $ref: "./components/schemas.yaml#/Patient"
+      $ref: ./patients/components/schemas/schemas.yaml#/Patient
     MeasurementType:
-      $ref: "./components/schemas.yaml#/MeasurementType"
+      $ref: ./common/components/schemas/schemas.yaml#/MeasurementType
     Threshold:
-      $ref: "./components/schemas.yaml#/Threshold"
+      $ref: ./thresholds/components/schemas/schemas.yaml#/Threshold
     ThresholdCreate:
-      $ref: "./components/schemas.yaml#/ThresholdCreate"
+      $ref: ./thresholds/components/schemas/schemas.yaml#/ThresholdCreate
     ThresholdPatch:
-      $ref: "./components/schemas.yaml#/ThresholdPatch"
+      $ref: ./thresholds/components/schemas/schemas.yaml#/ThresholdPatch
     AlertStatus:
-      $ref: "./components/schemas.yaml#/AlertStatus"
+      $ref: ./alerts/components/schemas/schemas.yaml#/AlertStatus
     AlertSummary:
-      $ref: "./components/schemas.yaml#/AlertSummary"
+      $ref: ./alerts/components/schemas/schemas.yaml#/AlertSummary
     AlertDetail:
-      $ref: "./components/schemas.yaml#/AlertDetail"
+      $ref: ./alerts/components/schemas/schemas.yaml#/AlertDetail
     AlertUpdate:
-      $ref: "./components/schemas.yaml#/AlertUpdate"
+      $ref: ./alerts/components/schemas/schemas.yaml#/AlertUpdate
     Problem:
-      $ref: "./components/schemas.yaml#/Problem"
+      $ref: ./common/components/schemas/schemas.yaml#/Problem
     BatchReceipt:
-      $ref: "./components/schemas.yaml#/BatchReceipt"
+      $ref: ./measurements/components/schemas/schemas.yaml#/BatchReceipt
     MeasurementPage:
-      $ref: "./components/schemas.yaml#/MeasurementPage"
+      $ref: ./measurements/components/schemas/schemas.yaml#/MeasurementPage
     PatientPage:
-      $ref: "./components/schemas.yaml#/PatientPage"
+      $ref: ./patients/components/schemas/schemas.yaml#/PatientPage
     AlertPage:
-      $ref: "./components/schemas.yaml#/AlertPage"
+      $ref: ./alerts/components/schemas/schemas.yaml#/AlertPage
     ConsentList:
-      $ref: "./components/schemas.yaml#/ConsentList"
+      $ref: ./consents/components/schemas/schemas.yaml#/ConsentList
     ThresholdList:
-      $ref: "./components/schemas.yaml#/ThresholdList"
-
+      $ref: ./thresholds/components/schemas/schemas.yaml#/ThresholdList
 x-pending-decisions:
-  # Formats JSON non validés.
-  - "Formats JSON non encore définis, types des identifiants et enveloppes des listes : non contraints
-    tant que non validés."
-  - Formats des dates non encore définis, unités et bornes numériques des mesures,
-    validations complémentaires, ordre de tri, bornes de période et corps de réponses définitifs.
-  # Sécurité : la cible patientId est retenue ; ses autorisations restent à préciser.
-  - Identification du simulateur et rattachement montre-patient pour patientId, fournisseur et
-    flux OAuth, noms définitifs et granularité des scopes montre/patient/soignant (noms provisoires).
+  - "Formats JSON non encore définis, types des identifiants et enveloppes des listes : non
+    contraints tant que non validés."
+  - Formats des dates non encore définis, unités et bornes numériques des mesures, validations
+    complémentaires, ordre de tri, bornes de période et corps de réponses définitifs.
+  - Identification du simulateur et rattachement montre-patient pour patientId, fournisseur et flux
+    OAuth, noms définitifs et granularité des scopes montre/patient/soignant (noms provisoires).
   - "Périmètre du consentement pour listes de patients/alertes, informations patient, seuils et
     acquittement. Principe retenu : s’il est exigé, son absence ou son retrait place l’objet hors du
     périmètre (404 en accès direct, exclusion dans les collections)."
@@ -159,12 +153,9 @@ x-pending-decisions:
     et gestion de If-Match: * à valider. ETag sur la collection des seuils non retenu."
   - "Sécurité — flux OAuth (authorizationCode avec PKCE, clientCredentials), URLs du fournisseur et
     déclaration de schéma oauth2 : non figés, voir docs/outillage-tp3.md."
-  # Réponse de création du lot.
-  - Corps JSON de confirmation du lot et URI canonique dans Location ; pas de nouvelle route inventée.
-  # Alertes et notifications.
+  - Corps JSON de confirmation du lot et URI canonique dans Location ; pas de nouvelle route
+    inventée.
   - "Propositions à confirmer pour les alertes : valeurSeuil est la borne minimale ou maximale
     réellement franchie ; horodatage est la date de création de l’alerte."
-  - Enveloppe paginée des alertes, acquittement individuel,
-    destinataires des notifications.
-  # Traitement et persistance.
+  - Enveloppe paginée des alertes, acquittement individuel, destinataires des notifications.
   - Ordre et garanties entre persistance, évaluation des seuils et alertes ; intégration PostgreSQL.

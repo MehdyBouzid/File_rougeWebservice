@@ -1,0 +1,47 @@
+Measurement:
+  type: object
+  properties:
+    horodatage:
+      type: string
+      format: date-time
+      description: Date et heure du relevé, avec un fuseau horaire.
+    frequenceCardiaque:
+      type: number
+      description: Fréquence cardiaque relevée.
+    spo2:
+      type: number
+      description: Saturation en oxygène relevée.
+    pas:
+      type: integer
+      description: Nombre de pas depuis le relevé précédent, et non un compteur cumulé.
+  required:
+    - horodatage
+    - frequenceCardiaque
+    - spo2
+    - pas
+  description: Relevé fictif associé au patient du lot. Les unités et les bornes numériques restent à
+    préciser ; aucune limite de valeur ni interdiction de champ supplémentaire n’est imposée ici.
+MeasurementBatch:
+  type: object
+  properties:
+    patientId:
+      $ref: ../../../common/components/schemas/schemas.yaml#/Identifier
+    batchId:
+      $ref: ../../../common/components/schemas/schemas.yaml#/Identifier
+    measurements:
+      type: array
+      minItems: 1
+      items:
+        $ref: "#/Measurement"
+  required:
+    - patientId
+    - batchId
+    - measurements
+  description: Lot de mesures fictives associé à un patient. Enregistrement atomique ; tout batchId
+    déjà reçu est refusé, contenu identique ou différent.
+BatchReceipt:
+  description: "Corps de confirmation de création du lot : contenu et structure JSON non définis."
+MeasurementPage:
+  description: Mesures et informations de pagination (page actuelle, taille et nombre total de pages).
+    Enveloppe et noms des champs JSON non définis ; aucun items, page, size ou totalPages imposé
+    dans la réponse.

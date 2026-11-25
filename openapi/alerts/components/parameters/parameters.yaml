@@ -1,0 +1,21 @@
+alertId:
+  name: alertId
+  in: path
+  required: true
+  description: Identifiant de la ressource demandée.
+  schema:
+    $ref: ../../../common/components/schemas/schemas.yaml#/Identifier
+  example: "12"
+patientFilter:
+  name: patientId
+  in: query
+  description: Filtre facultatif sur un patient suivi.
+  schema:
+    $ref: ../../../common/components/schemas/schemas.yaml#/Identifier
+  example: "42"
+status:
+  name: status
+  in: query
+  description: Statut d’alerte ; nom de filtre repris de api.md, distinct du champ statut dans le corps PATCH.
+  schema:
+    $ref: ../schemas/schemas.yaml#/AlertStatus

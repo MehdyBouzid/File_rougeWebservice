@@ -1,88 +1,157 @@
 # Choix techniques — Veillo
 
+Ce document présente les technologies retenues et indique où placer le code.
+
+- **Échanges et règles métier :** [guides métier](openapi/architecture-api.md).
+- **Lancement et développement :** [README du backend](backend/README.md).
+
 ## 1. Technologies retenues
 
 ### NestJS et TypeScript
 
-NestJS structure le backend autour de modules, de contrôleurs et de services, avec une injection de dépendances intégrée. Cette organisation facilite le partage du travail entre développeurs ; TypeScript rend les interfaces entre composants explicites et permet de détecter des erreurs de types à la compilation.
+**NestJS structure l’API** en modules, Controllers et Services. Cette organisation permet de répartir le développement par ressource.
+
+L’**injection de dépendances** fournit à une classe les composants dont elle a besoin. Par exemple, NestJS fournit le Service au Controller.
+
+**TypeScript vérifie les types à la compilation.** Il aide à détecter les erreurs entre composants, mais ne valide pas les requêtes HTTP reçues.
 
 ### TypeORM
 
-TypeORM relie les classes représentant les données aux opérations de stockage et fournit des repositories standards. Son intégration avec NestJS permet d’injecter ces repositories dans les services et de préparer la persistance sans écrire systématiquement une couche d’accès personnalisée. Les dépendances sont installées, mais aucune connexion ni entité métier n’est configurée.
+**Quoi ?** Un ORM qui associe les classes TypeScript aux tables PostgreSQL.
 
-### Migrations TypeORM
+**Pourquoi ?** Simplifier l’accès aux données grâce à son intégration avec NestJS.
 
-Une migration est un fichier TypeScript versionné qui décrit un changement du schéma PostgreSQL (créer une table, ajouter une colonne). Elle se trouve dans `backend/src/persistence/migrations/`.
+**Comment ?** Les **Entities** décrivent les données persistées. Les **Repositories** fournissent les opérations de lecture et d’écriture.
 
-Nous utilisons des migrations plutôt qu'une modification automatique, car `synchronize: false` empêche TypeORM d'aligner seul la base sur les Entities : une synchronisation pourrait supprimer des colonnes ou des données sans avertissement. Une Entity décrit le modèle voulu ; seule une migration crée réellement la table.
+**Dans Veillo :** les Services utiliseront les repositories TypeORM. Un repository personnalisé n’est pas nécessaire par défaut.
 
-Chaque migration contient `up()`, qui applique le changement, et `down()`, qui l'annule. TypeORM note les migrations exécutées dans la table `veillo_migrations`, et n'applique que celles qui manquent. Elles ne se lancent pas au démarrage (`migrationsRun: false`) : on les applique volontairement avec `npm run migration:run`.
-
-À ce stade, le dossier ne contient aucune migration : aucune n'a été appliquée et aucune table métier n'existe. Les commandes sont détaillées dans [docs/docker.md](docs/docker.md).
-
-En équipe, on relit une migration avant de l'exécuter, car elle modifie la base commune et son `down()` peut supprimer des données. On ne modifie jamais une migration déjà partagée : les bases qui l'ont appliquée ne la rejouent pas, leur schéma divergerait. On ajoute une nouvelle migration corrective.
+**État actuel :** TypeORM, le pilote `pg` et la connexion par variables d’environnement sont configurés. Aucune Entity métier n’est encore active.
 
 ### Python — à confirmer
 
-Python est envisagé pour le simulateur IoT : un programme autonome pourra générer des mesures fictives et les envoyer en HTTP. Cela permettrait de tester les échanges avec le backend indépendamment de son langage et sans matériel connecté. Aucun fichier Python ni configuration du simulateur n’est présent dans le dépôt ; ce choix reste donc à confirmer.
+Python est envisagé pour générer des mesures fictives et les envoyer en HTTP, sans montre réelle.
+
+**À confirmer :** aucun programme Python ni configuration du simulateur n’est présent dans le dépôt.
 
 ### OpenAPI
 
-Le fichier [openapi/openapi.yaml](openapi/openapi.yaml) décrit le contrat HTTP commun au backend, au simulateur et à l’application mobile externe. Il sert de référence pour les opérations, paramètres, données et réponses, et permet de valider ou de simuler les échanges avant l’implémentation du backend. Les éléments encore ouverts dans le contrat ne constituent pas des décisions définitives.
+[openapi.yaml](openapi/openapi.yaml) est le point d’entrée du **contrat HTTP** commun au backend, au simulateur et au client mobile externe.
+
+Il décrit les routes, paramètres, JSON et réponses attendus. Un **mock** simule ces échanges pour préparer les clients avant que le backend soit prêt.
+
+Le [guide TP3](docs/outillage-tp3.md) explique les fichiers et les outils. Les formats encore ouverts ne sont pas des décisions définitives.
 
 ## 2. Organisation du backend
 
-Le dossier `backend/src/features/` regroupe six ressources : `patients`, `measurements`, `thresholds`, `alerts`, `consents` et `caregivers`. Cette organisation rapproche les fichiers qui évoluent ensemble et permet à chaque développeur de travailler sur un périmètre métier identifiable.
+[features/](backend/src/features/) regroupe six ressources : `patients`, `measurements`, `thresholds`, `alerts`, `consents` et `caregivers`.
 
-Chaque ressource possède ses dossiers `controllers`, `services`, `dto`, `entities` et `repositories`. Les couches séparent le transport HTTP, les règles métier et le stockage, pour faire évoluer l’un sans disperser ses responsabilités dans les autres. Les noms internes ne définissent pas les URI : par exemple, `thresholds` correspond aux routes `/patients/{patientId}/seuils` du contrat.
+Chaque ressource rassemble ses couches. Les fichiers qui évoluent ensemble restent proches, et chaque développeur retrouve son périmètre.
 
-### Organisation des ressources métier
+**Parcours prévu d’une requête :**
 
-- `patients/` : Patients
-- `measurements/` : Mesures
-- `thresholds/` : Seuils
-- `alerts/` : Alertes
-- `consents/` : Consentements
-- `caregivers/` : Soignants
+```text
+Requête HTTP → validation du DTO → Controller → Service → Repository → PostgreSQL
+```
 
-Ces rôles décrivent le périmètre prévu par le contrat OpenAPI. Pour l’instant, seuls les modules et leurs squelettes existent : aucune de ces fonctionnalités n’est encore implémentée (voir la section 5).
+**Exemple de nommage :** le dossier interne `thresholds` correspond aux URI `/patients/{patientId}/seuils`. Le nom du dossier n’impose pas celui de la route.
 
 ## 3. Responsabilités des couches
 
 ### Module
 
-Le Module assemble les contrôleurs, services et imports d’une ressource et rend disponibles les dépendances nécessaires. Il définit aussi les exports utiles aux autres modules ; il ne contient ni traitement HTTP ni règles métier. `AppModule` rassemble les six modules du backend.
+**Assembler les composants.** Il déclare les Controllers, Services et imports, puis exporte les dépendances utiles aux autres modules.
+
+Dans Veillo, `AppModule` rassemble les six ressources et `DatabaseModule`. Un Module ne contient ni traitement HTTP ni règle métier.
 
 ### Controller
 
-Le Controller reçoit les requêtes HTTP, récupère les données d’entrée et retourne les réponses prévues par le contrat. Il déclare les routes et délègue le traitement au Service, sans porter les règles métier ni accéder directement à la base.
+**Gérer les échanges HTTP.** Il déclare les routes, lit les entrées et construit les réponses prévues par OpenAPI.
+
+Il appelle le Service. Il ne porte ni règle métier ni accès direct à la base.
 
 ### Service
 
-Le Service applique les règles métier et coordonne les opérations nécessaires, notamment l’accès aux données et les transactions lorsqu’elles seront définies. Il utilise la persistance sans dépendre de la façon dont une requête HTTP est reçue. Les statuts et les détails propres au transport restent dans la couche HTTP.
+**Appliquer les règles métier.** Il coordonne les accès aux données et les transactions : plusieurs écritures peuvent ainsi réussir ou échouer ensemble.
+
+Les autorisations et le consentement ne sont pas décidés par le Repository. Les en-têtes et autres détails HTTP restent dans le Controller.
 
 ### DTO
 
-Le DTO décrit les données échangées, notamment les entrées attendues par une opération. Les DTO d’entrée porteront les contraintes de validation retenues, avec un mécanisme de validation à configurer ; le typage TypeScript seul ne valide pas une requête à l’exécution. Un DTO ne définit pas automatiquement la structure de stockage et ne contient pas les traitements métier.
+**Décrire les données échangées.** Un DTO d’entrée porte les décorateurs de validation `class-validator`.
+
+Le **ValidationPipe global** est configuré pour appliquer ces contrôles à l’exécution. Les DTO préparatoires restent à compléter selon les schémas validés.
+
+Un DTO ne définit pas la table et ne contient pas de traitement métier.
 
 ### Entity
 
-L’Entity représente les données persistées et leur correspondance avec la base au moyen des décorateurs TypeORM. Elle contiendra les champs et relations validés à partir du modèle de données. Elle ne définit ni les routes HTTP ni, à elle seule, les données autorisées dans une requête ou une réponse.
+**Décrire les données persistées.** Les décorateurs TypeORM associent la classe aux colonnes et relations PostgreSQL.
+
+L’Entity doit respecter le modèle validé et les migrations. Elle ne définit ni les routes ni les données autorisées dans une réponse.
+
+**À retenir :** DTO et Entity ont des rôles différents. Leurs propriétés n’ont pas à être identiques.
 
 ### Repository
 
-Le Repository effectue les lectures et écritures des entités pour le Service. TypeORM fournit déjà des repositories standards : un repository personnalisé n’est nécessaire que pour un besoin d’accès aux données spécifique. Il ne doit pas décider des autorisations, des consentements ou des autres règles métier.
+**Lire et écrire les données pour le Service.** Utiliser d’abord le repository standard TypeORM.
 
-## 4. Fonctionnement du simulateur IoT
+Une classe personnalisée n’est utile que pour des requêtes spécifiques. Les règles métier restent dans le Service.
 
-Si Python est confirmé, le simulateur produira des relevés fictifs de fréquence cardiaque, de SpO₂ et de nombre de pas. Il les transmettra par lots toutes les minutes, en HTTP/JSON, à l’opération `POST /measurements` définie dans le contrat.
+## 4. PostgreSQL et migrations
 
-Le simulateur est un client HTTP : il n’accède pas directement à PostgreSQL et ne décide pas des règles du suivi. Le backend recevra les lots, vérifiera les autorisations et les données, puis appliquera les traitements métier et la persistance. L’identification de la montre et son rattachement au patient restent à préciser.
+### Relations entre les données
 
-## 5. État actuel de l’architecture
+Une **clé étrangère** garantit qu’une référence cible une ligne existante. Dans le MPD, Consentement référence Patient et Soignant.
 
-Le serveur NestJS et les six modules sont préparés. Chaque Controller reçoit son Service par injection, mais aucune méthode HTTP ni logique métier n’est implémentée ; les dossiers DTO, Entity et Repository contiennent seulement des fichiers `.gitkeep`.
+Une **table de jointure** représente une relation plusieurs-à-plusieurs. `SUIVRE` relie ainsi les patients à leurs soignants, sans être automatiquement exposée par l’API.
 
-TypeORM est installé et chaque module utilise `TypeOrmModule.forFeature(...)` avec une liste d’entités vide. Un script central génère le registre des entités avant le build ou le démarrage, selon les conventions décrites dans le [README du backend](backend/README.md). L’enregistrement d’une vraie entité nécessitera aussi la configuration d’une connexion et du pilote adapté ; PostgreSQL reste la base prévue.
+### Faire évoluer le schéma
 
-Le simulateur, les fonctionnalités de suivi, les accès PostgreSQL, la sécurité OAuth 2.0/JWT et les notifications restent à développer. Les règles déjà retenues et les questions ouvertes sont détaillées dans [docs/design.md](docs/design.md), tandis que les opérations et leurs réponses figurent dans [docs/api.md](docs/api.md) et [docs/api-review.md](docs/api-review.md).
+Une **migration** est un fichier versionné qui modifie le schéma PostgreSQL. Cela permet de relire le SQL et de partager les mêmes évolutions entre développeurs.
+
+Les fichiers sont dans [persistence/migrations/](backend/src/persistence/migrations/) :
+
+- `up()` applique le changement.
+- `down()` prévoit son retour arrière.
+- `veillo_migrations` conserve l’historique et évite de rejouer les migrations enregistrées.
+
+**Choix retenus :** `synchronize: false` interdit l’alignement automatique sur les Entities ; `migrationsRun: false` désactive les migrations au démarrage.
+
+**Avant application :** relire le SQL et les dépendances. Une migration partagée ou appliquée se corrige par un nouveau fichier.
+
+**Vigilance :** un retour arrière peut supprimer des données. Il ne résout pas automatiquement un conflit entre développeurs.
+
+## 5. Fonctionnement du simulateur IoT
+
+Le simulateur devra produire fréquence cardiaque, SpO₂ et pas, puis envoyer un lot toutes les minutes.
+
+```text
+Simulateur → HTTP/JSON → POST /measurements → backend → PostgreSQL
+```
+
+C’est un **client HTTP** : il n’accède pas directement à la base. Python reste le langage envisagé.
+
+Le backend devra authentifier l’émetteur, vérifier ses droits sur `patientId` et traiter le lot. Le JSON et les points ouverts figurent dans le [guide Mesures](openapi/measurements/guide.md).
+
+## 6. État actuel de l’architecture
+
+### Socle préparé
+
+- Serveur NestJS, six modules et injection des Services.
+- Validation globale des entrées.
+- Connexion PostgreSQL configurée et outillage de migrations.
+- Six migrations : SQL préparé pour Patients, Seuils et Consentements ; trois autres squelettes.
+
+L’état appliqué dépend de chaque base : consulter les [commandes Docker](docs/docker.md#migrations-typeorm).
+
+### Fonctionnalités à développer
+
+- Entities actives et persistance applicative.
+- Routes, règles métier et contrôles d’accès.
+- OAuth 2.0/JWT, simulateur et notifications.
+
+Les DTO et Entities préparatoires d’Ethan restent des squelettes. Les autres emplacements peuvent encore ne contenir qu’un `.gitkeep`.
+
+**Le SQL prêt ne prouve pas que les parcours HTTP fonctionnent.** Les tests du contrat sur un mock ne remplacent pas les tests du backend et de sa persistance.
+
+Les décisions de conception et leurs limites restent dans [design.md](docs/design.md), les traitements dans [api.md](docs/api.md) et les réponses dans [api-review.md](docs/api-review.md).
