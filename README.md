@@ -182,6 +182,12 @@ Le TP4 porte sur l’implémentation du backend NestJS à partir du contrat Open
 - **Organisation et commandes du backend** : [backend/README.md](backend/README.md)
 - **Docker et migrations TypeORM** : [docs/docker.md](docs/docker.md)
 
+### Avancement — Mesures, Alertes et Soignants
+
+- **Endpoints implémentés** : `POST /measurements`, `GET /patients/{patientId}/measurements`, `GET /alerts`, `GET /alerts/{alertId}` et `PATCH /alerts/{alertId}` (avec la couche métier `caregivers` sans route dédiée en V1, conformément à [docs/contrats/soignant.md](docs/contrats/soignant.md)).
+- **Erreurs normalisées RFC 9457** : un gestionnaire global ([problem-details.filter.ts](backend/src/common/http/problem-details.filter.ts)) renvoie `application/problem+json` avec une URI `type` stable par catégorie (`validation`, `not-found`, `conflict`, `internal-error`), le champ `errors` sur les erreurs de validation `400`, et consigne les traces `500` côté logs sans les exposer dans la réponse HTTP. L’authentification OAuth/JWT sera branchée une fois le contrat OpenAPI correspondant validé.
+- **Justification de la pagination (offset)** : les collections paginées (`GET /patients/{patientId}/measurements` et `GET /alerts`) utilisent une pagination par **offset** (`page` à partir de `0`, `size` par défaut à `50` et plafonné à `100`, au-delà `400`). Ce choix correspond directement aux paramètres `page` et `size` fixés dans le contrat OpenAPI, permet d’afficher le nombre total de pages (`totalPages`) et d’accéder directement à une page donnée côté client, tout en restant maîtrisé grâce au plafond de 100 éléments et à un tri déterministe (`horodatage DESC, id ASC`). Chaque réponse inclut un objet `links` (`self`, `next`, `prev`) conservant les filtres actifs pour naviguer vers la page suivante ou précédente.
+
 ## 9. TP5 — Tests d’intégration et Schemathesis
 
 Le travail est préparé dans le [guide Schemathesis pour Elamine](docs/tests/schemathesis.md). Il distingue les essais sur Prism des vérifications futures du backend et de la CI.
