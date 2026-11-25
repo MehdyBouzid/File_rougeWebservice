@@ -1,9 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { type EntityManager, Repository } from 'typeorm';
+import { DataSource, type EntityManager, Repository } from 'typeorm';
 import { isUuid } from '../../../common/validation/validation.utils';
-import { SuivreService } from '../../suivre/services/suivre.service';
 import { Caregiver } from '../entities/caregiver.entity';
+import { Suivre } from '../entities/suivre.entity';
 
 export interface PatientAccessOptions {
   requireConsent?: boolean;
@@ -21,7 +21,9 @@ export class CaregiversService {
   constructor(
     @InjectRepository(Caregiver)
     private readonly caregiversRepository: Repository<Caregiver>,
-    private readonly suivreService: SuivreService,
+    @InjectRepository(Suivre)
+    private readonly suivreRepository: Repository<Suivre>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findById(caregiverId: string): Promise<Caregiver | null> {
@@ -37,7 +39,26 @@ export class CaregiversService {
     caregiverId: string,
     patientId: string,
   ): Promise<boolean> {
-    return this.suivreService.isFollowingPatient(caregiverId, patientId);
+    if (!isUuid(caregiverId) || !isUuid(patientId)) {
+      return false;
+    }
+
+    return this.suivreRepository.existsBy({
+      idSoignant: caregiverId,
+      idPatient: patientId,
+    });
+  }
+
+  async getFollowedPatientIds(caregiverId: string): Promise<string[]> {
+    if (!isUuid(caregiverId)) {
+      return [];
+    }
+
+    const rows = await this.suivreRepository.find({
+      where: { idSoignant: caregiverId },
+      select: { idPatient: true },
+    });
+    return rows.map((row) => row.idPatient);
   }
 
   async hasValidConsent(
@@ -45,11 +66,24 @@ export class CaregiversService {
     patientId: string,
     referenceDate: Date = new Date(),
   ): Promise<boolean> {
-    return this.suivreService.hasValidConsent(
-      caregiverId,
-      patientId,
-      referenceDate,
+    if (!isUuid(caregiverId) || !isUuid(patientId)) {
+      return false;
+    }
+
+    const rows: Array<{ exists: number }> = await this.dataSource.query(
+      `
+        SELECT 1 AS exists
+        FROM public.consentement
+        WHERE id_soignant = $1
+          AND id_patient = $2
+          AND (date_debut IS NULL OR date_debut <= $3)
+          AND (date_fin IS NULL OR date_fin > $3)
+        LIMIT 1
+      `,
+      [caregiverId, patientId, referenceDate],
     );
+
+    return rows.length > 0;
   }
 
   async hasAccessToPatient(
@@ -57,13 +91,93 @@ export class CaregiversService {
     patientId: string,
     options: PatientAccessOptions = {},
   ): Promise<boolean> {
-    return this.suivreService.canAccessPatient(caregiverId, patientId, options);
+    if (!isUuid(caregiverId) || !isUuid(patientId)) {
+      return false;
+    }
+
+    const requireConsent = options.requireConsent ?? true;
+    const referenceDate = options.referenceDate ?? new Date();
+
+    if (!requireConsent) {
+      const rows: Array<{ exists: number }> = await this.dataSource.query(
+        `
+          SELECT 1 AS exists
+          FROM public.patient p
+          INNER JOIN public.suivre su
+            ON su.id_patient = p.id_patient
+          WHERE p.id_patient = $1
+            AND su.id_soignant = $2
+          LIMIT 1
+        `,
+        [patientId, caregiverId],
+      );
+      return rows.length > 0;
+    }
+
+    const rows: Array<{ exists: number }> = await this.dataSource.query(
+      `
+        SELECT 1 AS exists
+        FROM public.patient p
+        INNER JOIN public.suivre su
+          ON su.id_patient = p.id_patient
+        WHERE p.id_patient = $1
+          AND su.id_soignant = $2
+          AND EXISTS (
+            SELECT 1
+            FROM public.consentement c
+            WHERE c.id_patient = p.id_patient
+              AND c.id_soignant = su.id_soignant
+              AND (c.date_debut IS NULL OR c.date_debut <= $3)
+              AND (c.date_fin IS NULL OR c.date_fin > $3)
+          )
+        LIMIT 1
+      `,
+      [patientId, caregiverId, referenceDate],
+    );
+
+    return rows.length > 0;
   }
 
   async getCaregiversForPatient(
     patientId: string,
     options: PatientCaregiversOptions = {},
   ): Promise<string[]> {
-    return this.suivreService.getCaregiversForPatient(patientId, options);
+    if (!isUuid(patientId)) {
+      return [];
+    }
+
+    const onlyWithValidConsent = options.onlyWithValidConsent ?? true;
+    const referenceDate = options.referenceDate ?? new Date();
+
+    if (!onlyWithValidConsent) {
+      const repo = options.manager
+        ? options.manager.getRepository(Suivre)
+        : this.suivreRepository;
+      const rows = await repo.find({
+        where: { idPatient: patientId },
+        select: { idSoignant: true },
+      });
+      return rows.map((row) => row.idSoignant);
+    }
+
+    const runner = options.manager ?? this.dataSource.manager;
+    const rows: Array<{ id_soignant: string }> = await runner.query(
+      `
+        SELECT DISTINCT su.id_soignant
+        FROM public.suivre su
+        WHERE su.id_patient = $1
+          AND EXISTS (
+            SELECT 1
+            FROM public.consentement c
+            WHERE c.id_patient = su.id_patient
+              AND c.id_soignant = su.id_soignant
+              AND (c.date_debut IS NULL OR c.date_debut <= $2)
+              AND (c.date_fin IS NULL OR c.date_fin > $2)
+          )
+      `,
+      [patientId, referenceDate],
+    );
+
+    return rows.map((row) => row.id_soignant);
   }
 }

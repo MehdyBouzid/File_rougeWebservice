@@ -15,7 +15,6 @@ import {
 } from '../../../common/validation/validation.utils';
 import { CaregiversService } from '../../caregivers/services/caregivers.service';
 import type { Measurement } from '../../measurements/entities/measurement.entity';
-import { RecevoirService } from '../../recevoir/services/recevoir.service';
 import type {
   AlertDetailDto,
   AlertPageDto,
@@ -24,6 +23,7 @@ import type {
 import type { AlertUpdateDto } from '../dto/alert-update.dto';
 import type { ListAlertsQueryDto } from '../dto/list-alerts-query.dto';
 import { Alert, AlertStatus } from '../entities/alert.entity';
+import { Recevoir } from '../entities/recevoir.entity';
 
 interface ActiveThresholdRow {
   id_seuil: string;
@@ -69,9 +69,10 @@ export class AlertsService {
   constructor(
     @InjectRepository(Alert)
     private readonly alertsRepository: Repository<Alert>,
+    @InjectRepository(Recevoir)
+    private readonly recevoirRepository: Repository<Recevoir>,
     private readonly dataSource: DataSource,
     private readonly caregiversService: CaregiversService,
-    private readonly recevoirService: RecevoirService,
   ) {}
 
   async evaluateMeasurementsAndCreateAlerts(
@@ -143,18 +144,43 @@ export class AlertsService {
         referenceDate: createdAt,
       });
 
-    const createdAlertIds = alertsToCreate.map((alert) => alert.idAlerte);
+    if (recipientCaregiverIds.length > 0) {
+      const recipients: Array<{ idSoignant: string; idAlerte: string }> = [];
+      for (const alert of alertsToCreate) {
+        for (const caregiverId of recipientCaregiverIds) {
+          recipients.push({
+            idSoignant: caregiverId,
+            idAlerte: alert.idAlerte,
+          });
+        }
+      }
 
-    await this.recevoirService.assignAlertsToCaregivers(
-      createdAlertIds,
-      recipientCaregiverIds,
-      manager,
-    );
+      await manager
+        .getRepository(Recevoir)
+        .createQueryBuilder()
+        .insert()
+        .into(Recevoir)
+        .values(recipients)
+        .orIgnore()
+        .execute();
+    }
 
     return {
-      createdAlertIds,
+      createdAlertIds: alertsToCreate.map((alert) => alert.idAlerte),
       recipientCaregiverIds,
     };
+  }
+
+  async getRecipientCaregiverIds(alertId: string): Promise<string[]> {
+    if (!isUuid(alertId)) {
+      return [];
+    }
+
+    const rows = await this.recevoirRepository.find({
+      where: { idAlerte: alertId },
+      select: { idSoignant: true },
+    });
+    return rows.map((row) => row.idSoignant);
   }
 
   notifyCaregiversOfNewAlerts(

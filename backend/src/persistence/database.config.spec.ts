@@ -1,5 +1,3 @@
-import { Recevoir } from '../features/recevoir/entities/recevoir.entity';
-import { Suivre } from '../features/suivre/entities/suivre.entity';
 import { createDatabaseOptions } from './database.config';
 import { featureEntities } from './feature-entities.generated';
 
@@ -19,7 +17,7 @@ describe('Configuration PostgreSQL', () => {
       database: 'test',
       synchronize: false,
       migrationsRun: false,
-      entities: [...Object.values(featureEntities).flat(), Suivre, Recevoir],
+      entities: Object.values(featureEntities).flat(),
     });
   });
 
