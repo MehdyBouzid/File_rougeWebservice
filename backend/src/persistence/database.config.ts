@@ -1,5 +1,7 @@
 import { join } from 'node:path';
 import type { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
+import { Recevoir } from '../features/recevoir/entities/recevoir.entity';
+import { Suivre } from '../features/suivre/entities/suivre.entity';
 import { featureEntities } from './feature-entities.generated';
 
 export function createDatabaseOptions(
@@ -23,7 +25,7 @@ export function createDatabaseOptions(
     password: required('DB_PASSWORD'),
     database: required('DB_NAME'),
     applicationName: 'veillo-backend',
-    entities: Object.values(featureEntities).flat(),
+    entities: [...Object.values(featureEntities).flat(), Suivre, Recevoir],
     migrations: [
       join(
         __dirname,

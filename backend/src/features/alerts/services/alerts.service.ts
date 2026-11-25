@@ -15,6 +15,7 @@ import {
 } from '../../../common/validation/validation.utils';
 import { CaregiversService } from '../../caregivers/services/caregivers.service';
 import type { Measurement } from '../../measurements/entities/measurement.entity';
+import { RecevoirService } from '../../recevoir/services/recevoir.service';
 import type {
   AlertDetailDto,
   AlertPageDto,
@@ -70,6 +71,7 @@ export class AlertsService {
     private readonly alertsRepository: Repository<Alert>,
     private readonly dataSource: DataSource,
     private readonly caregiversService: CaregiversService,
+    private readonly recevoirService: RecevoirService,
   ) {}
 
   async evaluateMeasurementsAndCreateAlerts(
@@ -141,23 +143,16 @@ export class AlertsService {
         referenceDate: createdAt,
       });
 
-    if (recipientCaregiverIds.length > 0) {
-      for (const alert of alertsToCreate) {
-        for (const caregiverId of recipientCaregiverIds) {
-          await manager.query(
-            `
-              INSERT INTO public.recevoir (id_soignant, id_alerte)
-              VALUES ($1, $2)
-              ON CONFLICT (id_soignant, id_alerte) DO NOTHING
-            `,
-            [caregiverId, alert.idAlerte],
-          );
-        }
-      }
-    }
+    const createdAlertIds = alertsToCreate.map((alert) => alert.idAlerte);
+
+    await this.recevoirService.assignAlertsToCaregivers(
+      createdAlertIds,
+      recipientCaregiverIds,
+      manager,
+    );
 
     return {
-      createdAlertIds: alertsToCreate.map((alert) => alert.idAlerte),
+      createdAlertIds,
       recipientCaregiverIds,
     };
   }
