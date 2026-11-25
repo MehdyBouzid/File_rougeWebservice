@@ -1,0 +1,108 @@
+ThresholdNotFound:
+  description: Patient ou seuil inexistant, ou hors du périmètre autorisé de l’appelant (BOLA), à
+    savoir patient non suivi par le soignant, seuil rattaché à un autre patient que celui du chemin,
+    ou consentement valide exigé absent ou retiré. Les cas ne sont pas distinguables dans la
+    réponse.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/NotFound
+listPatientThresholds200:
+  description: Les seuils configurés pour le patient sont récupérés.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/ThresholdList
+createPatientThreshold201:
+  description: Le nouveau seuil du patient a été enregistré.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/Threshold
+      examples:
+        exemple:
+          $ref: ../examples/examples.yaml#/createPatientThreshold201
+  headers:
+    ETag:
+      $ref: ../../../cache/components/headers/headers.yaml#/ETag
+    Location:
+      description: URI identifiant la ressource créée. Elle désigne le GET individuel du seuil.
+      required: true
+      schema:
+        type: string
+        format: uri-reference
+      example: /patients/patient-001/seuils/seuil-001
+createPatientThreshold400:
+  description: Propriété obligatoire absente, type invalide, valeur nulle, propriété inconnue ou
+    valeurMin supérieure à valeurMax.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/BadRequest
+createPatientThreshold409:
+  description: Un seuil actif du même type existe déjà pour ce patient ; la création est refusée.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/Conflict
+getPatientThreshold200:
+  description: Le seuil demandé est récupéré, avec son ETag.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/Threshold
+      examples:
+        exemple:
+          $ref: ../examples/examples.yaml#/createPatientThreshold201
+  headers:
+    ETag:
+      $ref: ../../../cache/components/headers/headers.yaml#/ETag
+updatePatientThreshold200:
+  description: Les valeurs ou l’état du seuil ont été modifiés ; la réponse porte le nouvel ETag.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/Threshold
+      examples:
+        exemple:
+          $ref: ../examples/examples.yaml#/updatePatientThreshold200
+  headers:
+    ETag:
+      $ref: ../../../cache/components/headers/headers.yaml#/ETag
+updatePatientThreshold400:
+  description: Corps vide, valeur nulle, type invalide, propriété inconnue ou bornes finales ne
+    respectant pas valeurMin <= valeurMax.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/BadRequest
+updatePatientThreshold404:
+  description: Le patient ou le seuil demandé est introuvable.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/NotFound
+updatePatientThreshold409:
+  description: L’activation entrerait en conflit avec un autre seuil actif du même type pour ce patient.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/Conflict

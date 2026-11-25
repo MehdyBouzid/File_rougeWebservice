@@ -1,0 +1,21 @@
+listPatients200:
+  description: La liste paginée des patients suivis par le soignant connecté est récupérée.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/PatientPage
+listPatients400:
+  description: Les paramètres de pagination sont invalides ; la taille maximale documentée est de 100 patients.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/BadRequest
+getPatient200:
+  description: Les informations du patient suivi sont récupérées.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/Patient

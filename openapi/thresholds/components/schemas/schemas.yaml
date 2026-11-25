@@ -1,0 +1,61 @@
+Threshold:
+  type: object
+  properties:
+    seuilId:
+      $ref: ../../../common/components/schemas/schemas.yaml#/Identifier
+    patientId:
+      $ref: ../../../common/components/schemas/schemas.yaml#/Identifier
+    typeMesure:
+      $ref: ../../../common/components/schemas/schemas.yaml#/MeasurementType
+    valeurMin:
+      type: number
+    valeurMax:
+      type: number
+    actif:
+      type: boolean
+      description: Le backend active automatiquement le seuil à sa création.
+  required:
+    - seuilId
+    - patientId
+    - typeMesure
+    - valeurMin
+    - valeurMax
+    - actif
+  description: Seuil du patient. Le backend garantit valeurMin <= valeurMax et un seul seuil actif par
+    patient et type de mesure. Les types et formats des identifiants restent ouverts.
+ThresholdCreate:
+  type: object
+  additionalProperties: false
+  properties:
+    typeMesure:
+      $ref: ../../../common/components/schemas/schemas.yaml#/MeasurementType
+    valeurMin:
+      type: number
+    valeurMax:
+      type: number
+  required:
+    - typeMesure
+    - valeurMin
+    - valeurMax
+  description: Les trois propriétés sont obligatoires et non nulles ; les propriétés inconnues sont
+    refusées. Le patient vient du chemin et actif est fixé à true par le backend. Le backend vérifie
+    valeurMin <= valeurMax, égalité autorisée ; cette comparaison entre propriétés n’est pas
+    exprimable par les contraintes JSON Schema standard utilisées ici.
+ThresholdPatch:
+  type: object
+  additionalProperties: false
+  minProperties: 1
+  properties:
+    valeurMin:
+      type: number
+    valeurMax:
+      type: number
+    actif:
+      type: boolean
+  description: Au moins une propriété est requise ; chacune est facultative individuellement. Corps
+    vide, valeurs nulles et propriétés inconnues sont refusés. Le type de mesure et le patient ne
+    sont pas modifiables. Après fusion avec les valeurs conservées, le backend vérifie valeurMin <=
+    valeurMax ; cette comparaison n’est pas validée par le schéma.
+ThresholdList:
+  description: Liste de seuils du patient dont chaque élément est décrit par Threshold. L’enveloppe
+    JSON reste à définir ; ce schéma ne contraint pas encore la structure de la liste.

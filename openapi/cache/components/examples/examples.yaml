@@ -1,0 +1,14 @@
+PreconditionFailed:
+  summary: Réponse d’erreur illustrative
+  value:
+    type: about:blank
+    title: Précondition non satisfaite
+    status: 412
+    detail: Le seuil a été modifié depuis sa lecture. Exemple fictif sans donnée de santé.
+PreconditionRequired:
+  summary: Réponse d’erreur illustrative
+  value:
+    type: about:blank
+    title: Précondition requise
+    status: 428
+    detail: L’en-tête If-Match est obligatoire. Exemple fictif sans donnée de santé.

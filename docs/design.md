@@ -10,7 +10,7 @@ Ce document décrit le modèle et les décisions, pas un backend métier termin�
 
 - **Simulateur IoT :** simuler des montres connectées, produire des mesures fictives et les transmettre par lots toutes les minutes. Il n’accédera pas directement à la base. Sa technologie et son organisation interne restent à définir.
 - **API REST NestJS/TypeScript :** recevoir et valider les données, appliquer les règles métier et la sécurité, gérer la persistance et exposer les opérations HTTP.
-- **PostgreSQL :** conserver patients, soignants, mesures, seuils, alertes et consentements. La connexion TypeORM est configurée ; les entités, tables et traitements métier restent à développer. Voir les [choix techniques](../CHOIX_TECHNIQUES.md).
+- **PostgreSQL :** conserver patients, soignants, mesures, seuils, alertes et consentements. La connexion TypeORM est configurée et le SQL de Patients, Seuils et Consentements existe dans les migrations. Les autres tables, les Entities actives et la persistance applicative restent à développer. Voir les [choix techniques](../CHOIX_TECHNIQUES.md).
 - **Application mobile externe :** appeler l’API en tant que client, sans faire partie des composants développés par l’équipe.
 
 ## 3. Échanges prévus
@@ -32,7 +32,11 @@ Les requêtes Bruno du TP1 explorent httpbin et HAPI FHIR. Elles ne constituent 
 
 Le MCD, réalisé avec Mocodo, comporte **6 entités et 8 associations**. Aucune association ne possède d’attribut.
 
-[**Voir le MCD du projet Veillo**](images/mcd-veillo.png)
+- [MCD : entités et associations métier](images/Modele%20Conceptuel%20de%20Donn%C3%A9e%20MCD-veillo.png).
+- [MLD : tables et relations](images/Sch%C3%A9ma%20relationnel%20MLD%20%E2%80%94%20Veillo.png).
+- [MPD : colonnes et types PostgreSQL](images/Sch%C3%A9ma%20MPD%20relationnel%20Veillo.png).
+
+Ces modèles décrivent la conception. L’existence des tables sur un poste se vérifie dans PostgreSQL et dans l’historique des migrations.
 
 ### Diagramme de classes Mermaid
 
@@ -233,7 +237,10 @@ Là où il est exigé : absence ou retrait → `404` en accès direct, exclusion
 
 ### Seuils
 
-- **Requêtes conditionnelles retenues :** `GET` individuel du seuil avec `ETag`, `If-Match` obligatoire sur le `PATCH` (`412`, `428`) et `If-None-Match` avec `304`. L’`ETag` est un validateur fort calculé depuis la représentation, sans colonne de version. Le futur backend écrira dans une transaction avec `SELECT … FOR UPDATE`, et un index unique partiel garantira un seul seuil actif par patient et type. Rien de cela n’est implémenté ; détails dans le [guide des seuils](contrats/seuils.md#requêtes-conditionnelles-etag).
+- **Requêtes conditionnelles retenues :** `GET` individuel du seuil avec `ETag`, `If-Match` obligatoire sur le `PATCH` (`412`, `428`) et `If-None-Match` avec `304`. L’`ETag` est un validateur fort calculé depuis la représentation, sans colonne de version.
+
+Le PATCH devra vérifier puis modifier le seuil dans une transaction avec `SELECT … FOR UPDATE`, pour empêcher une écriture concurrente pendant ce contrôle. L’index unique partiel, limité aux seuils actifs, est déjà défini dans la migration Seuils. Le calcul d’ETag et le traitement HTTP restent à implémenter : voir le [guide des seuils](../openapi/thresholds/guide.md#requêtes-conditionnelles-etag).
+
 - Confirmer si un dépassement correspond à une valeur hors de l’intervalle `valeur_min`–`valeur_max`.
 - Préciser les modalités d’application de `actif` lors de l’évaluation des mesures. L’unicité du seuil actif est retenue ; la possibilité de conserver plusieurs seuils inactifs pour un même patient et un même type reste à préciser.
 
@@ -248,7 +255,7 @@ Là où il est exigé : absence ou retrait → `404` en accès direct, exclusion
 
 Les contrats documentés sont regroupés dans [api.md](api.md) (endpoints, lots et notifications) et [api-review.md](api-review.md) (réponses HTTP et cas à valider). Les points suivants restent à préciser :
 
-- L’identification du patient et de l’émetteur d’un lot, ainsi que les modalités de sécurité laissées ouvertes en section 7. Le MCD ne contient pas d’entité dédiée aux comptes.
+- Le patient d’un lot est ciblé par `patientId`, selon le [contrat Mesures](../openapi/measurements/guide.md). L’identification de l’émetteur et son autorisation sur ce patient restent à définir, avec les modalités de sécurité de la section 7. Le MCD ne contient pas d’entité dédiée aux comptes.
 - L’ordre et les garanties entre stockage des mesures, évaluation des seuils et création des alertes.
-- Le passage du MCD conceptuel aux entités, relations et migrations métier PostgreSQL ; la connexion technique existe déjà.
+- Compléter la traduction du modèle en Entities et migrations PostgreSQL. Le SQL Patients, Seuils et Consentements est préparé ; cela ne finalise pas les autres ressources ni les traitements applicatifs.
 - Le webhook signé prévu par le sujet : contrat, destinataire et articulation avec le push restent à définir. Aucune livraison n’est implémentée.

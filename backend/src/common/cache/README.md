@@ -19,9 +19,9 @@ Références : [cache HTTP](https://www.rfc-editor.org/rfc/rfc9111.html#section-
 
 ## Où est le contrat ?
 
-Le guide [docs/contrats/cache.md](../../../../docs/contrats/cache.md) explique les routes concernées, les en-têtes, les réponses `200`, `201`, `304`, `412` et `428`, des exemples HTTP et les contrôles d’accès à faire avant toute réponse conditionnelle. Sa source de vérité est [cache.yaml](../../../../openapi/components/cache.yaml), utilisé par [seuils.yaml](../../../../openapi/paths/seuils.yaml). Le détail des règles est dans le [guide des seuils](../../../../docs/contrats/seuils.md#requêtes-conditionnelles-etag).
+Le guide [guide du cache HTTP](../../../../openapi/cache/guide.md) explique les routes concernées, les en-têtes, les réponses `200`, `201`, `304`, `412` et `428`, des exemples HTTP et les contrôles d’accès à faire avant toute réponse conditionnelle. Ses sources de vérité sont les [composants du cache](../../../../openapi/cache/components), utilisés par [seuils.yaml](../../../../openapi/thresholds/paths/seuils.yaml). Le détail des règles est dans le [guide des seuils](../../../../openapi/thresholds/guide.md#requêtes-conditionnelles-etag).
 
-Le bundle [openapi.bundle.yaml](../../../../openapi/openapi.bundle.yaml) est généré : ne pas le modifier à la main. Les utilitaires de ce dossier ne couvrent aujourd’hui que `If-None-Match` ; `If-Match` (comparaison forte) et la logique du `PATCH` ne sont pas encore prévus ici.
+Le bundle [openapi.bundle.yaml](../../../../openapi/openapi.bundle.yaml) est généré : ne pas le modifier à la main. Les fichiers de ce dossier préparent l’ETag et `If-None-Match`, mais aucune fonction n’est encore implémentée. `If-Match` et la logique du PATCH restent à développer et à raccorder ; ce squelette ne les fournit pas.
 
 ## Comment se déroule un échange ?
 
@@ -37,7 +37,9 @@ Pour un GET autorisé à utiliser ce mécanisme :
 - [etag.util.ts](etag.util.ts) : produire l’ETag et comparer `If-None-Match`, avec des fonctions indépendantes de NestJS et de la base.
 - [etag.util.spec.ts](etag.util.spec.ts) : remplacer les `it.todo` par de vrais tests unitaires.
 
-Plus tard, le controller obtiendra du Service les données autorisées, préparera le JSON selon les filtres et la pagination, puis appellera ces fonctions. Il choisira le statut et les en-têtes HTTP. Le Service conservera les règles métier ; l’utilitaire ne décidera jamais des droits d’accès. Aucun module, interceptor ou Redis n’est à ajouter ici.
+Pour le GET individuel d’un seuil, le controller obtiendra du Service les données autorisées et préparera la représentation `Threshold`, puis appellera les utilitaires. Il choisira le statut et les en-têtes HTTP.
+
+Le Service conservera les règles métier ; l’utilitaire ne décidera jamais des droits d’accès. Aucun module, interceptor ou Redis n’est à ajouter ici.
 
 ## Précautions pour les patients
 

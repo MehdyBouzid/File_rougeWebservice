@@ -27,9 +27,13 @@ Ses remarques nous permettent de confronter notre raisonnement. Elles ne prouven
 
 ## Documentation
 
-L’IA nous aide à rédiger et à structurer le [README](README.md), [docs/design.md](docs/design.md) et [docs/http.md](docs/http.md).
+L’IA nous aide à rédiger et à structurer le [README](README.md), la [conception](docs/design.md), les [exercices HTTP](docs/http.md) et l’[architecture des contrats](openapi/architecture-api.md).
 
 Nous l’utilisons pour reformuler les informations que nous avons déjà, mieux les organiser et améliorer la clarté et la cohérence des documents.
+
+Codex a aussi participé aux relectures des contrats et à l’harmonisation des Markdown du dépôt. Les décisions ouvertes et les résultats historiques sont conservés ; une reformulation ne vaut pas validation métier ni preuve de test.
+
+Codex a réorganisé les sources OpenAPI et déplacé les guides par ressource, selon l’architecture validée. Les références, liens et documents de navigation ont été actualisés ; la comparaison du contrat assemblé et les validations sont distinguées des tests du backend métier.
 
 ## Développement
 
@@ -50,6 +54,12 @@ L’IA a été utilisée pour préparer la structure technique du backend NestJS
 Elle a également aidé à automatiser certaines configurations et à ajouter des commentaires pédagogiques pour faciliter la compréhension du code.
 
 **La conception des fonctionnalités, la logique métier et leur implémentation restent à la charge des développeurs.**
+
+### Migrations et vérifications techniques
+
+Codex a aidé à traduire le MPD fourni en SQL dans les migrations Patients, Seuils et Consentements, sans générer les Entities métier. Il a exécuté la migration Seuils seule, puis vérifié la table et son historique dans PostgreSQL ; Consentements est restée bloquée par l’absence de Soignant lors de ce contrôle.
+
+Cette assistance technique ne remplace pas la relecture du SQL ni les tests métier. Les vérifications et résultats doivent être distingués des fonctionnalités simplement préparées.
 
 ## Vérification et responsabilité
 

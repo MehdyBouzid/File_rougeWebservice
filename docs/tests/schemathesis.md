@@ -38,7 +38,9 @@ Schemathesis s’utilise via Docker, sans installation Python locale :
 docker run --rm schemathesis/schemathesis:stable --version
 ```
 
-L’image locale affiche `4.33.4`. La version et l’aide `run --help` ont été consultées pendant cette révision ; **aucun test de contrat n’a été relancé**. Le tag `stable` peut évoluer lors d’un prochain téléchargement.
+L’image locale utilisée affiche `4.33.4` ; l’aide `run --help` a été consultée. Le tag `stable` peut évoluer lors d’un prochain téléchargement.
+
+Les essais du parent et du bundle après réorganisation sont consignés dans les [résultats du refactoring](../outillage-tp3.md#vérification-du-refactoring-par-ressource). Ils portent sur Prism, pas sur le backend métier.
 
 Sur Docker Desktop (Mac et Windows), `host.docker.internal` permet au conteneur de joindre un service lancé sur l’hôte. Les commandes multi-lignes ci-dessous utilisent la syntaxe Bash.
 
@@ -96,7 +98,7 @@ Ou sélectionner le domaine :
 --include-tag Seuils
 ```
 
-Les `operationId` sont dans [paths/](../../openapi/paths/). Les tags actuels sont `Mesures`, `Patients`, `Alertes`, `Consentements` et `Seuils`.
+Les `operationId` sont dans les fichiers `paths/` de chaque ressource : voir l’[architecture des contrats](../../openapi/architecture-api.md). Les tags actuels sont `Mesures`, `Patients`, `Alertes`, `Consentements` et `Seuils`.
 
 ## Comprendre et reproduire un échec
 

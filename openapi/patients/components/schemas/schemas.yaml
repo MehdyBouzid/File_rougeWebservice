@@ -1,0 +1,5 @@
+Patient:
+  description: "Informations du patient : identifiant, nom, prénom et date de naissance. Structure
+    JSON à définir."
+PatientPage:
+  description: Patients suivis et informations de pagination. Structure JSON et noms des champs non définis.

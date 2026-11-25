@@ -1,0 +1,49 @@
+ingestMeasurements201:
+  description: Le lot a été validé et enregistré avec toutes ses mesures dans une transaction.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/BatchReceipt
+  headers:
+    Location:
+      description: URI du lot créé. Convention non définie dans les documents ; aucune route de
+        consultation des lots n’est ajoutée.
+      required: true
+      schema:
+        type: string
+        format: uri-reference
+      x-pending-decision: Définir l’URI canonique du lot créé pour renseigner Location.
+ingestMeasurements400:
+  description: Les données du lot sont invalides ; un seul relevé invalide entraîne le rejet du lot entier.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/BadRequest
+ingestMeasurements409:
+  description: Le `batchId` a déjà été utilisé, que le contenu soit identique ou différent ; aucune
+    nouvelle mesure n’est enregistrée.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/Conflict
+listPatientMeasurements200:
+  description: Les mesures du patient correspondant à la période et à la page demandées sont récupérées.
+  content:
+    application/json:
+      schema:
+        $ref: ../schemas/schemas.yaml#/MeasurementPage
+listPatientMeasurements400:
+  description: Les paramètres de période ou de pagination sont invalides, notamment si `size` dépasse 100.
+  content:
+    application/problem+json:
+      schema:
+        $ref: ../../../common/components/schemas/schemas.yaml#/Problem
+      examples:
+        erreur:
+          $ref: ../../../common/components/examples/examples.yaml#/BadRequest

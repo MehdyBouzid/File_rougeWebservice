@@ -39,6 +39,7 @@ FHIR est un standard d’échange de données de santé. Cet exercice est distin
 
 - **GET et POST** : les GET lisent ici une ressource sans envoyer de corps ; le POST transmet un corps JSON.
 - **Paramètres** : après `?`, ils apportent des informations au serveur, comme `patient=42` ou `_count=1`.
+- **JSON** : format de données composé notamment d’objets, de tableaux et de valeurs. Le POST envoie ici l’objet `{"frequenceCardiaque":72}`, que httpbin décode dans sa réponse.
 - **Statuts** : `200 OK` indique ici une requête réussie ; `404 Not Found` indique une ressource introuvable, simulée volontairement dans cet exercice.
 - **Content-Type** : décrit le format du corps. Le GET et le POST JSON retournent `application/json` ; le POST utilise aussi cette valeur pour son corps de requête. La réponse 404 annonce `text/html; charset=utf-8`, malgré l’absence de corps. Les images annoncent respectivement `image/svg+xml` et `image/png`.
 - **Content-Length** : taille du corps en octets. Les valeurs consignées sont **233** pour le GET JSON, **25** pour le corps de requête POST, **0** pour la réponse 404 et les tailles SVG/PNG indiquées plus haut.
