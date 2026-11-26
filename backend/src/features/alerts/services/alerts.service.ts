@@ -60,7 +60,7 @@ export interface ThresholdEvaluationResult {
 }
 
 const GENERIC_PUSH_MESSAGE =
-  'Une nouvelle alerte nécessite votre attention. Connectez-vous à Veillo pour la consulter.';
+  'Une nouvelle alerte nécessite votre attention. Connectez-vous à Veillo pour la consulter .';
 
 @Injectable()
 export class AlertsService {
