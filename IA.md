@@ -61,6 +61,12 @@ Codex a aidé à traduire le MPD fourni en SQL dans les migrations Patients, Seu
 
 Cette assistance technique ne remplace pas la relecture du SQL ni les tests métier. Les vérifications et résultats doivent être distingués des fonctionnalités simplement préparées.
 
+### Validation contractuelle des réponses
+
+Codex a branché `express-openapi-validator` sur le bundle OpenAPI, avec la configuration native validée par Mehdy. La validation des requêtes et de la sécurité reste désactivée ; les DTO, le ValidationPipe, les filtres et les règles métier sont conservés. Des tests HTTP techniques vérifient le comportement du branchement sans implémenter les fonctionnalités de l’équipe.
+
+Le premier essai a exécuté 16 tests ciblés et la suite existante, puis vérifié le branchement dans un conteneur temporaire sans accès PostgreSQL. Ces contrôles ne garantissent ni les headers sortants, ni l’ordre des contrôles métier, ni les autorisations.
+
 ## Vérification et responsabilité
 
 Les réponses de l’IA peuvent contenir des erreurs. Nous les relisons et les vérifions, et nous ne retenons une proposition que si nous l’avons comprise.
