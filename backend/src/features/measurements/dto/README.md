@@ -1,7 +1,7 @@
 # Mesures — DTO
 
-[measurement-batch.dto.ts](measurement-batch.dto.ts) prépare les données reçues par `POST /measurements`. Compléter ses champs et décorateurs selon le [contrat Mesures](../../../../../openapi/measurements/guide.md), sans copier automatiquement l’Entity.
+[measurement-batch.dto.ts](measurement-batch.dto.ts) valide le lot et ses relevés. [list-measurements-query.dto.ts](list-measurements-query.dto.ts) traite la période et la pagination ; [measurement-response.dto.ts](measurement-response.dto.ts) décrit les réponses dans le code.
 
-Le `ValidationPipe` global est déjà activé. Les règles métier restent dans le Service ; le DTO porte les contraintes de structure des entrées.
+Le [contrat Mesures](../../../../../openapi/measurements/measurements-contract.md) reste la référence des échanges. Certains contrôles du DTO sont plus stricts que le YAML ; ces écarts restent à arbitrer, selon le [guide backend](../../../../README.md#validation-openapi-des-réponses).
 
-[Validation et couches backend](../../../../README.md#validation-des-entrées).
+L’atomicité, les doublons et l’autorisation sur le patient relèvent du Service, pas du DTO.

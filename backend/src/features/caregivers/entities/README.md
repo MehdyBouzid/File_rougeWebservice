@@ -1,7 +1,7 @@
 # Soignants — Entity TypeORM
 
-[caregiver.entity.ts](caregiver.entity.ts) est une classe préparatoire, sans colonnes ni décorateur TypeORM. Elle n’est pas enregistrée dans le modèle persistant.
+[caregiver.entity.ts](caregiver.entity.ts) décrit la table persistée et porte déjà les décorateurs TypeORM. La classe `Caregiver` est enregistrée dans le [registre des entités](../../../../README.md#enregistrement-des-entités).
 
-Définir les propriétés, la clé primaire et les relations à partir du modèle validé, puis ajouter `@Entity()`. La connexion PostgreSQL est configurée ; le [registre automatique](../../../../README.md#enregistrement-des-entités) reconnaît les imports nommés de décorateurs depuis `typeorm`.
+Avant de faire évoluer les colonnes ou relations, comparer l’Entity au [modèle validé](../../../../../docs/design.md#4-modélisation-des-données) et aux [migrations](../../../../src/persistence/migrations/). L’enregistrement d’une classe ne crée pas sa table et ne prouve pas que le SQL est appliqué.
 
-Les formats HTTP restent dans les DTO et les règles métier dans le Service. Référence fonctionnelle : [Soignants](../../../../../openapi/caregivers/guide.md).
+Le [guide Soignants](../../../../../openapi/caregivers/caregivers-contract.md) décrit les échanges HTTP ; ils ne doivent pas être déduits automatiquement de l’Entity.

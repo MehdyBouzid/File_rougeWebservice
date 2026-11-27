@@ -46,9 +46,20 @@ Le client conserve cette valeur opaque entre guillemets et la renvoie telle quel
 
 OpenAPI déclare ce paramètre facultatif pour laisser le backend produire `428`, plutôt qu’un rejet préalable par un outil de validation. Cela ne le rend pas facultatif dans l’usage de l’API.
 
+## Cache-Control : politique à choisir
+
+`Cache-Control` indique comment conserver et réutiliser une réponse. La politique de Veillo n’est pas encore définie :
+
+- `private` interdit le stockage partagé.
+- `no-cache` exige une revalidation avant réutilisation.
+- `no-store` interdit le stockage.
+- `max-age` fixe une durée de fraîcheur, pendant laquelle le client peut éviter un appel serveur.
+
+Cette durée peut retarder la prise en compte d’un consentement retiré ; elle doit respecter les règles d’accès. Références : [cache HTTP](https://www.rfc-editor.org/rfc/rfc9111.html#section-5.2.2) et [If-None-Match](https://www.rfc-editor.org/rfc/rfc9110.html#section-13.1.2).
+
 ## Exemples HTTP
 
-Les valeurs sont fictives. L’`ETag` et les erreurs viennent des exemples de [composants du cache](components). Le JSON complet du seuil figure dans le [guide des seuils](../thresholds/guide.md#lire-un-seuil).
+Les valeurs sont fictives. L’`ETag` et les erreurs viennent des exemples de [composants du cache](components). Le JSON complet du seuil figure dans le [guide des seuils](../thresholds/thresholds-contract.md#lire-un-seuil).
 
 ### Lire sans retélécharger le JSON
 
@@ -137,7 +148,7 @@ Ne pas partager une réponse privée entre utilisateurs ni exposer de donnée de
 
 Les fichiers de [common/cache/](../../backend/src/common/cache/README.md) préparent le travail d’Elamine sur l’`ETag` et `If-None-Match` : aucun utilitaire n’est encore implémenté. `If-Match` et l’écriture du PATCH restent aussi à développer, puis à raccorder.
 
-Le [guide des seuils](../thresholds/guide.md#requêtes-conditionnelles-etag) décrit la transaction prévue, le verrou de ligne et l’index unique partiel. Leur rôle est distinct : l’`ETag` protège l’état lu, l’index protège l’unicité du seuil actif.
+Le [guide des seuils](../thresholds/thresholds-contract.md#requêtes-conditionnelles-etag) décrit la transaction prévue, le verrou de ligne et l’index unique partiel. Leur rôle est distinct : l’`ETag` protège l’état lu, l’index protège l’unicité du seuil actif.
 
 ## Décisions restant à valider
 
@@ -145,7 +156,6 @@ Le [guide des seuils](../thresholds/guide.md#requêtes-conditionnelles-etag) dé
 - Traitement de `If-Match: *`.
 - `ETag` de collection : non retenu pour l’instant.
 - Politique `Cache-Control`.
-- Ordre des erreurs de structure : JSON mal formé, corps vide ou propriété inconnue → `400` avant ou après `428` et `412`.
 - Périmètre du consentement et contrôle dans la transaction ; s’il est exigé, son absence donne `404`.
 
-**Écart à arbitrer :** les guides laissent l’ordre du `400` de structure ouvert, alors qu’OpenAPI place `428` et `412` avant `400`. Ce guide ne tranche pas cette différence.
+L’ordre contractuel décrit plus haut est retenu. Le respect de cet ordre, y compris pour un corps invalide, reste à vérifier lors du raccordement HTTP ; les tests actuels ne le garantissent pas.

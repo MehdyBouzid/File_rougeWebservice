@@ -25,7 +25,7 @@ consentement requis mais absent ou retiré → 404
 
 Le consentement est explicitement requis pour les mesures et le détail d’une alerte. Son périmètre reste à harmoniser sur les autres opérations : voir la [revue HTTP](../../docs/api-review.md) et la [décision ouverte](../../docs/design.md#périmètre-du-contrôle-du-consentement).
 
-Le lien entre l’identité OAuth et `SOIGNANT` reste à définir. La sécurité métier n’est pas implémentée.
+Le lien entre l’identité OAuth et `SOIGNANT` reste à définir. Le Service Soignants contient des contrôles de suivi et de consentement ; leur raccordement aux appels HTTP et à l’identité authentifiée reste à réaliser. Voir l’[état du backend](../../backend/README.md).
 
 ## Si un profil devient nécessaire
 

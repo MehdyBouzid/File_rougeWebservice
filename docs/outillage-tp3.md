@@ -17,11 +17,11 @@ openapi.yaml → ressource/paths/ → ressource/components/
 ```
 
 - **[openapi.yaml](../openapi/openapi.yaml)** : point d’entrée, informations générales et références.
-- **Dossiers métier** : opérations, composants propres à la ressource et `guide.md`. Par exemple, [measurements/](../openapi/measurements/) rassemble le contrat d’ingestion.
+- **Dossiers métier** : opérations, composants propres à la ressource et `<ressource>-contract.md`. Par exemple, [measurements/](../openapi/measurements/) rassemble le contrat d’ingestion.
 - **[common/](../openapi/common/components/)** : identifiants, types de mesure, pagination et erreurs réellement partagés.
 - **[security/](../openapi/security/components/)** : mécanisme Bearer/JWT. Les permissions provisoires restent dans les opérations.
 - **[cache/](../openapi/cache/)** : ETag, préconditions et réponses conditionnelles des seuils.
-- **[openapi.bundle.yaml](../openapi/openapi.bundle.yaml)** : contrat regroupé, généré par Redocly. Ne pas le modifier à la main.
+- **[Bundle](../openapi/bundle.md)** : génération du contrat regroupé et utilisation par les outils.
 
 L’[architecture détaillée](../openapi/architecture-api.md) présente les dossiers, les références `$ref`, un parcours `POST /measurements` et les correspondances avec NestJS.
 
@@ -31,36 +31,20 @@ L’[architecture détaillée](../openapi/architecture-api.md) présente les dos
 modifier les sources → régénérer le bundle → valider → tester
 ```
 
-Avec la configuration actuelle, **Spectral utilise le bundle** pour éviter le rejet des références de chemins du parent. **Prism charge directement le parent** et ses références.
+Le [guide Spectral](../openapi/spectral.md) explique le lint et sa configuration. Prism charge directement le parent et ses références, comme indiqué dans la section 3.
 
-[.spectral.yaml](../openapi/.spectral.yaml) configure le lint : ce fichier ne fait pas partie du contrat HTTP.
-
-Les guides [Mesures](../openapi/measurements/guide.md), [Seuils](../openapi/thresholds/guide.md) et [Cache](../openapi/cache/guide.md) précisent les échanges. `patientId`, `batchId` et au moins un relevé sont obligatoires ; formats d’identifiants, unités, bornes et autorisations du simulateur restent ouverts.
+Les guides [Mesures](../openapi/measurements/measurements-contract.md), [Seuils](../openapi/thresholds/thresholds-contract.md) et [Cache](../openapi/cache/cache-contract.md) précisent les échanges. `patientId`, `batchId` et au moins un relevé sont obligatoires ; formats d’identifiants, unités, bornes et autorisations du simulateur restent ouverts.
 
 Conserver la cohérence avec [design.md](design.md), [api.md](api.md) et [api-review.md](api-review.md). Une réorganisation des fichiers ne valide aucune décision métier ou OAuth encore ouverte.
 
 ## 1. Génération du bundle et validation Spectral
 
-**Spectral vérifie le contrat et les règles du projet.** L’utiliser après chaque modification des sources, une fois le bundle régénéré par Redocly.
+Après chaque modification des sources :
 
-Depuis la racine :
+1. [Générer le bundle](../openapi/bundle.md#générer-et-mettre-à-jour) : regrouper le contrat avec Redocly.
+2. [Lancer Spectral](../openapi/spectral.md#lancer-les-vérifications) : vérifier le contrat et les règles de Veillo.
 
-```bash
-npx @redocly/cli bundle openapi/openapi.yaml -o openapi/openapi.bundle.yaml
-npx @stoplight/spectral-cli lint openapi/openapi.bundle.yaml --ruleset openapi/.spectral.yaml
-```
-
-**Résultat attendu :** génération réussie et 0 erreur Spectral. Lire aussi les avertissements. Cela ne teste pas le comportement de NestJS.
-
-Les règles actuelles contrôlent notamment :
-
-- `operation-operationId` : chaque opération possède un identifiant.
-- `security-roles-known` : les noms provisoires sont `montre`, `patient` et `soignant`.
-- Les réponses HTTP : `WWW-Authenticate` exigé sur les `401`, `Location` déclaré sur les `201` et erreurs en `application/problem+json`.
-
-`oas3-operation-security-defined` est désactivée : la règle native attend des scopes OAuth, alors que le contrat utilise encore Bearer avec des rôles OpenAPI 3.1.
-
-Un essai antérieur avec `authorizationCode`, `clientCredentials` et des URL fictives avait passé Redocly, Spectral et Prism. La règle native réactivée détectait un scope inconnu. **Cet essai ne valide ni ces flux ni un fournisseur OAuth pour Veillo.**
+Ces deux guides regroupent les commandes, les résultats attendus et les corrections à effectuer. Les contrôles statiques ne prouvent pas le fonctionnement de NestJS.
 
 ## 2. Documentation Redocly
 
@@ -106,42 +90,29 @@ npx @usebruno/cli run tp3-mock --env mock
 
 **Résultat attendu :** statuts, en-têtes et JSON conformes aux assertions. Un échec peut aussi révéler un test obsolète.
 
-### Ce que couvrent les requêtes actuelles
-
-- **01 — Patients :** attend `200` et les propriétés `items` et `pagination`. Cette enveloppe reste ouverte dans le contrat ; ces assertions sont une hypothèse du test.
-- **02 — Création d’un seuil :** attend `201`, `Location` et les six champs de `Threshold`, avec `actif: true`.
-- **03 — Lot invalide :** attend `400` car `patientId` manque. La note du fichier sur un UUID obligatoire et une SpO₂ limitée à 100 est obsolète : ces contraintes ne sont pas définies.
-- **04 à 07 — PATCH d’un seuil :** attendent `200` pour le corps valide, puis `400` pour un corps vide, une valeur nulle et une propriété inconnue.
-
-**Limite actuelle :** les quatre PATCH n’envoient pas `If-Match`. Ils explorent les schémas du mock et ne valident pas le parcours conditionnel prévu, où cet en-tête est exigé et son absence donne `428`.
-
-Pour comprendre un rejet Prism, lire `sl-violations`. La requête 03 utilisait l’exemple fictif `BadRequest` en `application/problem+json` ; son `detail` ne remplace pas le diagnostic réel attendu du backend. Voir les [limites du mock](mock-prism.md#résultats-et-preuves).
+Les [cas testés, assertions et limites](mock-prism.md#ce-que-couvrent-les-requêtes-actuelles) sont centralisés dans le guide Prism/Bruno.
 
 ## Résultats déjà consignés
 
-Ces résultats sont **historiques** et portent sur des versions successives du contrat :
+Ces résultats statiques sont historiques et portent sur des versions successives du contrat :
 
 - **Spectral :** 0 erreur et 0 avertissement après découpage, avant les évolutions Mesures et Alertes.
 - **Redocly :** 0 erreur et 2 avertissements : licence absente (`info-license`) et serveur local (`no-server-example.com`).
-- **Prism :** 118 appels identiques avant/après découpage : 12 succès, 43 erreurs forcées et 4 requêtes invalides par version. Ce contrôle précède les schémas actuels des relevés et alertes.
-- **Bruno :** vérification ciblée des seuils réussie, 5 requêtes et 11 tests. Les requêtes 01 et 03 n’avaient pas été rejouées ; la collection complète n’avait pas été réexécutée après le découpage.
 
-Lors de la révision rédactionnelle précédente, aucun essai HTTP ni nouveau lint n’avait été exécuté. Les aides des CLI Prism et Bruno avaient été consultées pour vérifier les commandes.
-
-Le fichier attendu `docs/mock.png` est absent. Les [captures disponibles](mock-prism.md#résultats-et-preuves) montrent des échanges antérieurs, pas une validation du backend actuel.
+Un essai antérieur de relecture n’avait exécuté ni nouveau lint ni essai HTTP ; seules les aides des CLI Prism et Bruno avaient été consultées.
 
 ## Vérification du refactoring par ressource
 
-Le 25 novembre 2026, la nouvelle [organisation](../openapi/architecture-api.md) a été vérifiée :
+Le 25 novembre 2026, le découpage par ressource a été vérifié :
 
 - **Équivalence :** mêmes 13 opérations, 19 schémas et définitions d’origine après résolution des références. Les bundles avant/après sont fonctionnellement équivalents.
 - **Exemples :** les huit corps initialement déclarés avec `example` utilisent désormais des `examples` référencés. Leurs valeurs sont inchangées.
 - **Redocly et Spectral :** aucune erreur. Les avertissements préexistants restent présents : licence absente, serveur local et `AlertSummary` non référencé.
-- **Prism :** 77 échanges identiques avant/après, dont les succès, les réponses forcées et une création de seuil invalide.
-- **Schemathesis 4.33.4 :** parent et bundle chargés séparément ; 13 opérations testées et 159 cas réussis pour chaque entrée.
 
-Les essais Schemathesis ont utilisé `examples,coverage` en mode positif, avec `--max-examples 1 --max-time 40 --seed 20261125`. Les trois exclusions propres au mock sont celles du [guide Schemathesis](tests/schemathesis.md#premier-essai-avec-prism). Le fuzzing et les tests à état n’ont pas été exécutés.
+Les [essais HTTP avant/après et Schemathesis](mock-prism.md#vérification-du-refactoring-par-ressource) sont conservés avec les preuves du mock. Ils ne prouvent pas le fonctionnement métier de NestJS.
 
-Ces contrôles portent sur le contrat et Prism. Ils ne prouvent pas l’implémentation des règles métier dans NestJS.
+## Validation à l’exécution dans NestJS
 
-Pour les tests générés depuis le contrat, poursuivre avec [Schemathesis](tests/schemathesis.md).
+Spectral et Redocly vérifient les fichiers. Le backend utilise séparément [express-openapi-validator](../backend/README.md#validation-openapi-des-réponses) pour contrôler les réponses JSON émises à partir du bundle.
+
+Les requêtes restent validées par les DTO. Les options, tests réalisés et limites du contrôle des réponses sont décrits dans le guide backend ; [Schemathesis](tests/schemathesis.md) vérifie les échanges depuis l’extérieur.

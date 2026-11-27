@@ -2,7 +2,7 @@
 
 Un seuil définit les limites d’un type de mesure pour un patient. Le soignant consulte ces limites, les adapte ou désactive un seuil sans le supprimer.
 
-Les routes restent à implémenter. Sources : [opérations seuils](paths/seuils.yaml), [schémas JSON](components/schemas/schemas.yaml) et [contrat du cache](../cache/guide.md).
+Les routes restent à implémenter. Sources : [opérations seuils](paths/seuils.yaml), [schémas JSON](components/schemas/schemas.yaml) et [contrat du cache](../cache/cache-contract.md).
 
 ## Vue d’ensemble
 
@@ -76,7 +76,7 @@ Ces six propriétés sont obligatoires : les identifiants relient le seuil au pa
 - `401` / `403` : authentification ou permission insuffisante.
 - `404` : patient inexistant ou non suivi, seuil inexistant ou rattaché à un autre patient.
 
-Le [guide du cache](../cache/guide.md) montre les échanges avec `If-None-Match`.
+Le [guide du cache](../cache/cache-contract.md) montre les échanges avec `If-None-Match`.
 
 ## Créer un seuil
 
@@ -167,7 +167,7 @@ Les bornes restent inchangées et le seuil est conservé. Le `200` renvoie le `T
 
 ## Requêtes conditionnelles (ETag)
 
-L’`ETag` est un validateur fort calculé depuis les six champs de `Threshold`, sans colonne de version. Il change lorsque la représentation change. Les comparaisons et exemples HTTP sont centralisés dans le [guide du cache](../cache/guide.md).
+L’`ETag` est un validateur fort calculé depuis les six champs de `Threshold`, sans colonne de version. Il change lorsque la représentation change. Les comparaisons et exemples HTTP sont centralisés dans le [guide du cache](../cache/cache-contract.md).
 
 **Écriture prévue côté backend**
 
@@ -191,11 +191,12 @@ Le SQL de la table, des contrôles de bornes et de l’index existe dans [Create
 
 - Enveloppe de liste, types et formats des identifiants, unités et bornes numériques.
 - Algorithme de l’`ETag`, sérialisation canonique et traitement de `If-Match: *`. L’`ETag` de collection n’est pas retenu.
-- Ordre des erreurs de structure : `400` avant ou après `428` et `412`.
 - Consentement sur les seuils et contrôle dans la même transaction ; s’il est exigé, son absence donne `404`.
 - Déclenchement d’une alerte aux bornes et modalités d’application de `actif` ; conserver plusieurs seuils inactifs du même type reste à préciser dans la conception.
 - Modalités [OAuth/JWT](../security/components/security.yaml).
 
-**Écarts à arbitrer :** le consentement reste ouvert malgré l’exigence du sujet. Les guides laissent aussi l’ordre du `400` de structure ouvert, alors qu’OpenAPI place `428` et `412` avant `400`. Voir la [revue HTTP](../../docs/api-review.md#patch-patientspatientidseuilsseuilid).
+**Écart à arbitrer :** le consentement reste ouvert malgré l’exigence du sujet.
+
+**Ordre contractuel retenu :** `401 → 403 → 404 → 428 → 412 → 400 ou 409`. Le raccordement de la validation et des préconditions devra le respecter ; il n’est pas prouvé par les tests actuels. Voir la [revue HTTP](../../docs/api-review.md#patch-patientspatientidseuilsseuilid).
 
 Prism ne vérifie ni la comparaison des bornes, ni la persistance, ni les conflits.

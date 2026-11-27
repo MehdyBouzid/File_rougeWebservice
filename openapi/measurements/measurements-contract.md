@@ -2,7 +2,7 @@
 
 Le simulateur d’Egor envoie des relevés fictifs par lots. Le soignant les consulte pour suivre l’évolution de ses patients.
 
-Ce guide décrit le contrat attendu, pas une ingestion déjà opérationnelle. Sources : [opérations mesures](paths/measurements.yaml) et [schémas JSON](components/schemas/schemas.yaml).
+Ce guide décrit le contrat attendu. Sources : [opérations mesures](paths/measurements.yaml) et [schémas JSON](components/schemas/schemas.yaml). Le [guide backend](../../backend/README.md) précise le code présent, les écarts avec OpenAPI et les contrôles restant à raccorder.
 
 ```text
 simulateur → POST /measurements → lot enregistré → évaluation des seuils → alertes

@@ -33,6 +33,8 @@ Nous l’utilisons pour reformuler les informations que nous avons déjà, mieux
 
 Codex a aussi participé aux relectures des contrats et à l’harmonisation des Markdown du dépôt. Les décisions ouvertes et les résultats historiques sont conservés ; une reformulation ne vaut pas validation métier ni preuve de test.
 
+Après validation de l’audit documentaire, Codex a allégé les vues API, corrigé les anciens états d’avancement et précisé les liens entre guides, outillage et backend. Cette première révision conservait les noms des guides et les YAML ; les commandes applicatives n’avaient pas été rejouées pendant cette étape. Les guides ont ensuite été renommés en `<ressource>-contract.md`, avec mise à jour des liens, sans modification des YAML.
+
 Codex a réorganisé les sources OpenAPI et déplacé les guides par ressource, selon l’architecture validée. Les références, liens et documents de navigation ont été actualisés ; la comparaison du contrat assemblé et les validations sont distinguées des tests du backend métier.
 
 ## Développement

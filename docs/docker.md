@@ -22,6 +22,8 @@ Le backend est publié par défaut sur `http://localhost:3000` et PostgreSQL sur
 
 Compose fournit `postgres:5432` au backend : c’est l’adresse interne de la base, distincte du port publié sur l’hôte. Le backend attend le healthcheck PostgreSQL, qui vérifie que le serveur accepte les connexions.
 
+Le [bundle OpenAPI](../openapi/openapi.bundle.yaml) est monté en lecture seule pour valider les réponses. Il doit être présent et régénéré après une modification des sources ; voir le [guide du bundle](../openapi/bundle.md#générer-et-mettre-à-jour). Ce fichier n’est pas inclus dans l’image backend seule.
+
 ## 2. Arrêter et reprendre
 
 Arrêter les services sans supprimer les données :
@@ -124,7 +126,7 @@ Cet historique ne liste pas les migrations en attente. Ne pas le modifier manuel
 
 Une migration versionne une évolution du schéma. `up()` l’applique, `down()` prévoit son retour arrière, et `veillo_migrations` conserve les exécutions réussies.
 
-Les fichiers sont dans [persistence/migrations/](../backend/src/persistence/migrations/). Le SQL Patients, Seuils et Consentements est préparé ; les autres squelettes lèvent encore une erreur. Consentements dépend de Patient et Soignant.
+Les fichiers sont dans [persistence/migrations/](../backend/src/persistence/migrations/). Les sept migrations contiennent du SQL pour les ressources et leurs associations. Consentements dépend de Patient et Soignant ; `recevoir` dépend de Soignant et Alerte. Lire le statut local avant toute application.
 
 `synchronize: false` et `migrationsRun: false` sont conservés : le backend ne crée pas automatiquement les tables et ne lance aucune migration au démarrage.
 
@@ -142,7 +144,7 @@ Générer une migration depuis la différence entre les Entities compilées et u
 docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools npm run migration:generate -- DescriptionEvolution
 ```
 
-Les fichiers sont écrits dans les sources locales. Sans différence, la génération retourne le code `1` et ne produit aucun fichier. Relire le résultat avant application ; les Entities encore vides ne définissent pas le futur schéma métier.
+Les fichiers sont écrits dans les sources locales. Sans différence, la génération retourne le code `1` et ne produit aucun fichier. Relire le résultat : seules certaines Entities sont actives ; leur absence pour une table ne signifie pas que cette table doit être supprimée.
 
 Vérifier les noms et l’absence de doublons locaux de nom ou de timestamp :
 
@@ -170,7 +172,7 @@ Un statut vide dans une ancienne image ne signifie pas que les sources sont vide
 
 ### Appliquer les migrations
 
-**Relire le SQL, vérifier les dépendances et prévoir une sauvegarde adaptée.** La commande applique toutes les migrations en attente ; ne pas la lancer tant que les squelettes bloquants ne sont pas complétés.
+**Relire le SQL, vérifier les dépendances et prévoir une sauvegarde adaptée.** La commande applique toutes les migrations en attente, pas seulement celles du développeur qui la lance.
 
 ```bash
 docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools npm run migration:run
