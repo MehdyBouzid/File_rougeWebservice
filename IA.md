@@ -33,6 +33,8 @@ Nous l’utilisons pour reformuler les informations que nous avons déjà, mieux
 
 Codex a aussi participé aux relectures des contrats et à l’harmonisation des Markdown du dépôt. Les décisions ouvertes et les résultats historiques sont conservés ; une reformulation ne vaut pas validation métier ni preuve de test.
 
+Après validation de l’audit documentaire, Codex a allégé les vues API, corrigé les anciens états d’avancement et précisé les liens entre guides, outillage et backend. Cette première révision conservait les noms des guides et les YAML ; les commandes applicatives n’avaient pas été rejouées pendant cette étape. Les guides ont ensuite été renommés en `<ressource>-contract.md`, avec mise à jour des liens, sans modification des YAML.
+
 Codex a réorganisé les sources OpenAPI et déplacé les guides par ressource, selon l’architecture validée. Les références, liens et documents de navigation ont été actualisés ; la comparaison du contrat assemblé et les validations sont distinguées des tests du backend métier.
 
 ## Développement
@@ -60,6 +62,12 @@ Elle a également aidé à automatiser certaines configurations et à ajouter de
 Codex a aidé à traduire le MPD fourni en SQL dans les migrations Patients, Seuils et Consentements, sans générer les Entities métier. Il a exécuté la migration Seuils seule, puis vérifié la table et son historique dans PostgreSQL ; Consentements est restée bloquée par l’absence de Soignant lors de ce contrôle.
 
 Cette assistance technique ne remplace pas la relecture du SQL ni les tests métier. Les vérifications et résultats doivent être distingués des fonctionnalités simplement préparées.
+
+### Validation contractuelle des réponses
+
+Codex a branché `express-openapi-validator` sur le bundle OpenAPI, avec la configuration native validée par Mehdy. La validation des requêtes et de la sécurité reste désactivée ; les DTO, le ValidationPipe, les filtres et les règles métier sont conservés. Des tests HTTP techniques vérifient le comportement du branchement sans implémenter les fonctionnalités de l’équipe.
+
+Le premier essai a exécuté 16 tests ciblés et la suite existante, puis vérifié le branchement dans un conteneur temporaire sans accès PostgreSQL. Ces contrôles ne garantissent ni les headers sortants, ni l’ordre des contrôles métier, ni les autorisations.
 
 ## Vérification et responsabilité
 

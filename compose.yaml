@@ -14,6 +14,8 @@ services:
       DB_PASSWORD: ${DB_PASSWORD:?Renseigner DB_PASSWORD dans le fichier .env}
     ports:
       - "127.0.0.1:${BACKEND_PORT:-3000}:3000"
+    volumes:
+      - ./openapi/openapi.bundle.yaml:/openapi/openapi.bundle.yaml:ro
     depends_on:
       postgres:
         condition: service_healthy

@@ -18,12 +18,14 @@ openapi/
 ├── security/               # Authentification commune
 ├── common/                 # Définitions utilisées par plusieurs ressources
 ├── architecture-api.md     # Ce guide
+├── bundle.md               # Génération et utilisation du bundle
+├── spectral.md             # Lint et règles du contrat
 ├── .spectral.yaml          # Configuration du lint, hors contrat HTTP
 ├── openapi.yaml            # Point d’entrée des sources
 └── openapi.bundle.yaml     # Contrat regroupé, généré
 ```
 
-Guides métier : [Mesures](measurements/guide.md), [Patients](patients/guide.md), [Seuils](thresholds/guide.md), [Alertes](alerts/guide.md), [Consentements](consents/guide.md) et [Soignant](caregivers/guide.md). Le [guide Cache](cache/guide.md) décrit les échanges conditionnels.
+Guides métier : [Mesures](measurements/measurements-contract.md), [Patients](patients/patients-contract.md), [Seuils](thresholds/thresholds-contract.md), [Alertes](alerts/alerts-contract.md), [Consentements](consents/consents-contract.md) et [Soignant](caregivers/caregivers-contract.md). Le [guide Cache](cache/cache-contract.md) décrit les échanges conditionnels.
 
 ## Dans une ressource
 
@@ -38,7 +40,7 @@ alerts/
 │   ├── schemas/schemas.yaml
 │   ├── responses/responses.yaml
 │   └── examples/examples.yaml
-└── guide.md
+└── alerts-contract.md
 ```
 
 - **`paths/`** : méthodes HTTP, paramètres et corps de requête des opérations. Les réponses y sont référencées.
@@ -46,7 +48,7 @@ alerts/
 - **`schemas/`** : structures JSON et contraintes de validation.
 - **`responses/`** : réponses avec leur description, corps et en-têtes. Le code HTTP est associé à la réponse dans `paths/`.
 - **`examples/`** : exemples référencés par les requêtes et les réponses.
-- **`guide.md`** : rôle métier, échanges, règles et décisions encore ouvertes.
+- **`<ressource>-contract.md`** : rôle métier, échanges, règles et décisions encore ouvertes.
 
 Les sous-dossiers restent séparés, même avec un seul fichier. Un fichier peut contenir plusieurs définitions nommées.
 
@@ -65,7 +67,7 @@ Les composants propres à une ressource restent dans cette ressource. Par exempl
 
 **[security/components/security.yaml](security/components/security.yaml)** définit Bearer/JWT. Les permissions provisoires restent dans le bloc `security` des opérations. Fournisseur OAuth, flux et scopes définitifs restent à valider.
 
-**[cache/](cache/guide.md)** centralise les requêtes conditionnelles des seuils :
+**[cache/](cache/cache-contract.md)** centralise les requêtes conditionnelles des seuils :
 
 ```text
 cache/components/
@@ -104,26 +106,11 @@ Le chemin se lit **depuis le fichier qui contient la référence** :
 
 Le parent possède aussi une section OpenAPI `components`. C’est un catalogue de références, pas un dossier global.
 
-### Le bundle : regrouper le contrat
+### Le bundle : utiliser le contrat regroupé
 
-**[openapi.bundle.yaml](openapi.bundle.yaml) rassemble les sources dans un seul document.** Il sert aux outils qui attendent un contrat regroupé.
+Le [guide du bundle](bundle.md) explique comment Redocly regroupe les sources, quels outils utilisent le résultat et comment le mettre à jour.
 
-**Redocly** part du parent, suit les `$ref` et génère ce fichier. **Ne pas modifier le bundle à la main** : la prochaine génération écraserait ces changements.
-
-```mermaid
-flowchart LR
-    S["Parent et fichiers référencés"] --> R["Redocly"]
-    R --> B["openapi.bundle.yaml"]
-    B --> V["Spectral : vérifier le contrat"]
-```
-
-Avec la configuration actuelle, **Spectral utilise le bundle** pour éviter le rejet des références de chemins du parent.
-
-**Prism charge directement le parent et ses références.** Il simule les réponses HTTP sans lancer NestJS :
-
-```text
-openapi.yaml + fichiers référencés → Prism → requêtes Bruno
-```
+Le [guide Spectral](spectral.md) décrit les règles de lint et la lecture des diagnostics. Prism charge directement le parent pour simuler les échanges HTTP.
 
 ## Exemple : POST /measurements
 
@@ -161,33 +148,21 @@ Ces fichiers décrivent les échanges attendus. Ils ne prouvent pas que le backe
 - **Définition partagée :** `common/`, uniquement si plusieurs ressources l’utilisent.
 - **Cache HTTP :** `cache/` et, si nécessaire, ses références dans les seuils.
 - **Sécurité :** mécanisme dans `security/`, permissions dans les opérations.
-- **Règle métier documentée :** `guide.md` de la ressource. Conserver la cohérence avec la [conception](../docs/design.md) et la [documentation API](../docs/api.md).
+- **Règle métier documentée :** `<ressource>-contract.md` de la ressource. Conserver la cohérence avec la [conception](../docs/design.md) et la [documentation API](../docs/api.md).
 
 ## Vérifier et utiliser le contrat
 
-**Prérequis :** Node.js 22, npm et un terminal à la racine du dépôt. Le [guide d’outillage TP3](../docs/outillage-tp3.md) détaille les outils et leurs limites.
+Le [guide TP3](../docs/outillage-tp3.md) présente le parcours des outils et les commandes du mock. Ce document décrit l’organisation des sources.
 
 ### Régénérer et valider
 
-Après une modification des fichiers sources :
-
-```bash
-npx @redocly/cli bundle openapi/openapi.yaml -o openapi/openapi.bundle.yaml
-npx @redocly/cli lint openapi/openapi.yaml
-npx @stoplight/spectral-cli lint openapi/openapi.bundle.yaml --ruleset openapi/.spectral.yaml
-```
-
-**Résultat attendu :** bundle généré et aucune erreur de validation. Lire aussi les avertissements.
+Après une modification des sources, [régénérer le bundle](bundle.md#générer-et-mettre-à-jour), [lancer Spectral](spectral.md#lancer-les-vérifications), puis [vérifier le parent avec Redocly](../docs/outillage-tp3.md#2-documentation-redocly).
 
 ### Lancer le mock
 
-Une fois le contrat validé :
+Une fois le contrat validé, [démarrer Prism](../docs/outillage-tp3.md#3-mock-prism), puis envoyer les requêtes avec Bruno. Prism simule le contrat ; il ne vérifie pas la persistance, le consentement ni les règles métier.
 
-```bash
-npx @stoplight/prism-cli mock openapi/openapi.yaml
-```
-
-Garder le terminal ouvert, puis envoyer les requêtes avec Bruno. Prism simule le contrat ; il ne vérifie pas la persistance, le consentement ni les règles métier.
+Le backend utilise aussi le bundle pour [contrôler ses réponses JSON à l’exécution](../backend/README.md#validation-openapi-des-réponses). Ce contrôle est distinct du lint et des essais sur le mock.
 
 ## Repères pour NestJS
 
@@ -196,7 +171,7 @@ paths/       → Controller
 parameters/  → Controller / DTO
 schemas/     → DTO
 responses/   → Controller / Exceptions
-guide.md     → Service / Règles métier
+*-contract.md → Service / Règles métier
 examples/    → Tests
 security/    → Guards / Contrôles d’accès
 cache/       → Gestion du cache HTTP
@@ -208,4 +183,4 @@ Ces correspondances sont des **repères de développement**, pas des équivalenc
 - Un exemple aide à préparer un test, mais ne remplace pas un test métier.
 - Les règles métier restent dans les Services.
 
-Pour coder, consulter les [responsabilités des couches backend](../CHOIX_TECHNIQUES.md#3-responsabilités-des-couches), puis les [procédures de développement](../backend/README.md).
+Pour coder, consulter les [responsabilités des couches backend](../backend/architecture-backend.md#modules-et-couches), puis les [procédures de développement](../backend/README.md).

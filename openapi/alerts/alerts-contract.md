@@ -2,7 +2,7 @@
 
 Une alerte signale le dépassement d’un seuil applicable. Elle est liée à une mesure et à un seuil **du même patient** ; une mesure peut déclencher plusieurs alertes.
 
-Les routes restent à implémenter. Sources : [opérations alertes](paths/alerts.yaml), [schémas JSON](components/schemas/schemas.yaml) et [règles métier](../../docs/design.md#6-règles-métier).
+Ce guide décrit les échanges attendus. Sources : [opérations alertes](paths/alerts.yaml), [schémas JSON](components/schemas/schemas.yaml) et [règles métier](../../docs/design.md#6-règles-métier). Le [guide backend](../../backend/README.md) distingue les routes codées des contrôles restant à raccorder.
 
 ```text
 dépassement → alerte ACTIVE → notification générique au soignant concerné

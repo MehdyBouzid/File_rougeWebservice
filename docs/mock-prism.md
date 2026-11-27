@@ -2,7 +2,7 @@
 
 Prism simule les réponses OpenAPI sans lancer NestJS. Utiliser ce mock pour préparer les échanges des clients et tester les requêtes Bruno ; il ne remplace pas les tests du backend.
 
-Le [guide d’outillage](outillage-tp3.md) explique l’architecture, la validation et les résultats par requête. Ici : installation, démarrage, utilisation et dépannage.
+Le [guide d’outillage](outillage-tp3.md) donne les commandes de génération et de lint. Ici : démarrage, requêtes Bruno, dépannage et preuves historiques du mock. L’[architecture OpenAPI](../openapi/architecture-api.md) explique les fichiers sources.
 
 ## 1. Prérequis
 
@@ -73,7 +73,7 @@ Exemple sur un autre port :
 npx @stoplight/prism-cli mock openapi/openapi.yaml -p 4011
 ```
 
-Après une modification des sources, [régénérer et valider le bundle](outillage-tp3.md#1-génération-du-bundle-et-validation-spectral), puis redémarrer Prism pour charger la version voulue.
+Après une modification des sources, [régénérer et valider le bundle](../openapi/bundle.md#générer-et-mettre-à-jour), puis redémarrer Prism pour charger la version voulue.
 
 ## 4. Tester le mock avec Bruno
 
@@ -99,7 +99,18 @@ Autre accès : <https://www.usebruno.com/downloads>. Le guide initial utilisait 
 
 L’environnement fournit `baseUrl`, `patientId`, `seuilId` et `token`. Avec **No Environment**, les variables restent non résolues. Pour lancer le dossier : clic droit sur `tp3-mock` → **Run / Run Collection**.
 
-Chaque fichier contient ses assertions dans `tests { … }`. Les cas et leurs limites sont décrits dans le [guide d’outillage](outillage-tp3.md#4-client-bruno) ; un test rouge peut révéler une hypothèse du test plutôt qu’un défaut du contrat.
+Chaque fichier contient ses assertions dans `tests { … }`. Les cas sont détaillés ci-dessous ; un test rouge peut révéler une hypothèse du test plutôt qu’un défaut du contrat.
+
+### Ce que couvrent les requêtes actuelles
+
+- **01 — Patients :** attend `200` et les propriétés `items` et `pagination`. Cette enveloppe reste ouverte dans le contrat ; ces assertions sont une hypothèse du test.
+- **02 — Création d’un seuil :** attend `201`, `Location` et les six champs de `Threshold`, avec `actif: true`.
+- **03 — Lot invalide :** attend `400` car `patientId` manque. La note du fichier sur un UUID obligatoire et une SpO₂ limitée à 100 est obsolète : ces contraintes ne sont pas définies.
+- **04 à 07 — PATCH d’un seuil :** attendent `200` pour le corps valide, puis `400` pour un corps vide, une valeur nulle et une propriété inconnue.
+
+**Limite actuelle :** les quatre PATCH n’envoient pas `If-Match`. Ils explorent les schémas du mock et ne valident pas le parcours conditionnel prévu, où cet en-tête est exigé et son absence donne `428`.
+
+Pour comprendre un rejet Prism, lire `sl-violations`. La requête 03 utilisait l’exemple fictif `BadRequest` en `application/problem+json` ; son `detail` ne remplace pas le diagnostic réel attendu du backend. Voir les [limites du mock](#résultats-et-preuves).
 
 ### En ligne de commande
 
@@ -125,7 +136,7 @@ npx @usebruno/cli run tp3-mock --env mock --env-var baseUrl=http://127.0.0.1:401
 - **`ECONNREFUSED` :** Prism est arrêté ou l’URL/port de Bruno est incorrect.
 - **`401` :** vérifier l’environnement `mock` et l’en-tête Bearer.
 - **`400/422` inattendu :** lire `sl-violations` et les logs. Le contrat Veillo prévoit `400` pour ses validations ; le comportement d’un outil ne redéfinit pas ces codes.
-- **Erreur de parsing :** suivre les [commandes de validation](outillage-tp3.md#1-génération-du-bundle-et-validation-spectral), en utilisant le bundle pour Spectral.
+- **Erreur de parsing :** suivre les [commandes de génération](../openapi/bundle.md#générer-et-mettre-à-jour) puis les [diagnostics Spectral](../openapi/spectral.md#comprendre-et-corriger-un-résultat).
 - **Téléchargement bloqué :** vérifier le proxy npm et les règles réseau du poste ; l’installation globale reste une option.
 
 ## Résultats et preuves
@@ -140,6 +151,34 @@ Captures disponibles :
 
 Ces images sont des **preuves historiques**, pas le contrat actuel : le seuil utilise désormais `seuilId`, et ni l’enveloppe Patients ni la limite de SpO₂ à 100 ne sont validées par ces captures. Le fichier attendu `docs/mock.png` est absent.
 
-Prism vérifie les schémas, pas la persistance, les transactions, l’unicité, le consentement ou les contrôles d’accès. Les réponses forcées et les exemples statiques ne prouvent pas l’implémentation métier. Voir les [écarts techniques observés](api-review.md#contrat-mock-et-backend).
+Prism vérifie les schémas, pas la persistance, les transactions, l’unicité, le consentement ou les contrôles d’accès. Les réponses forcées et les exemples statiques ne prouvent pas l’implémentation métier. Les écarts HTTP observés sont détaillés ci-dessous ; ils ne redéfinissent pas la [politique HTTP](api-review.md).
 
-Les captures ci-dessus restent historiques. Les essais après réorganisation des sources sont consignés dans les [résultats du refactoring](outillage-tp3.md#vérification-du-refactoring-par-ressource).
+Les captures ci-dessus restent historiques. Les essais suivants concernent des versions ultérieures du contrat.
+
+### Écarts HTTP observés
+
+Avec Prism 5.14.2, les essais ont observé :
+
+- Un JSON mal formé rejeté en `400 application/json`, au lieu du format d’erreur cible.
+- Une méthode non définie rejetée en `405` sans `Allow`.
+- Un média de requête non prévu rejeté en `400`.
+
+Ces limites du mock ne justifient pas de reproduire ces comportements dans NestJS. Les [tests Schemathesis](tests/schemathesis.md#limites-observées-sur-prism) expliquent leurs conséquences sur les contrôles automatisés.
+
+### Autres essais historiques
+
+Ces résultats précèdent les schémas actuels des relevés et alertes :
+
+- **Prism :** 118 appels identiques avant/après découpage : 12 succès, 43 erreurs forcées et 4 requêtes invalides par version.
+- **Bruno :** vérification ciblée des seuils réussie, 5 requêtes et 11 tests. Les requêtes 01 et 03 n’avaient pas été rejouées ; la collection complète n’avait pas été réexécutée après le découpage.
+
+### Vérification du refactoring par ressource
+
+Le 25 novembre 2026, les essais ont comparé les contrats avant et après réorganisation :
+
+- **Prism :** 77 échanges identiques avant/après, dont les succès, les réponses forcées et une création de seuil invalide.
+- **Schemathesis 4.33.4 :** parent et bundle chargés séparément ; 13 opérations testées et 159 cas réussis pour chaque entrée.
+
+Les essais Schemathesis ont utilisé `examples,coverage` en mode positif, avec `--max-examples 1 --max-time 40 --seed 20261125`. Les trois exclusions propres au mock sont celles du [guide Schemathesis](tests/schemathesis.md#premier-essai-avec-prism). Le fuzzing et les tests à état n’ont pas été exécutés.
+
+Les [résultats statiques](outillage-tp3.md#vérification-du-refactoring-par-ressource) consignent l’équivalence du contrat et les validations Redocly/Spectral. Ces essais HTTP portent sur Prism, pas sur le backend métier.

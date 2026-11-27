@@ -10,7 +10,7 @@ Ce document décrit le modèle et les décisions, pas un backend métier termin�
 
 - **Simulateur IoT :** simuler des montres connectées, produire des mesures fictives et les transmettre par lots toutes les minutes. Il n’accédera pas directement à la base. Sa technologie et son organisation interne restent à définir.
 - **API REST NestJS/TypeScript :** recevoir et valider les données, appliquer les règles métier et la sécurité, gérer la persistance et exposer les opérations HTTP.
-- **PostgreSQL :** conserver patients, soignants, mesures, seuils, alertes et consentements. La connexion TypeORM est configurée et le SQL de Patients, Seuils et Consentements existe dans les migrations. Les autres tables, les Entities actives et la persistance applicative restent à développer. Voir les [choix techniques](../CHOIX_TECHNIQUES.md).
+- **PostgreSQL :** conserver patients, soignants, mesures, seuils, alertes et consentements. L’[architecture backend](../backend/architecture-backend.md#composants-communs-et-persistance) explique le lien entre le modèle, les Entities et les migrations.
 - **Application mobile externe :** appeler l’API en tant que client, sans faire partie des composants développés par l’équipe.
 
 ## 3. Échanges prévus
@@ -19,12 +19,14 @@ Le simulateur et le client mobile communiqueront avec l’API en **HTTP/JSON**. 
 
 `Simulateur → HTTP/JSON → API → PostgreSQL`.
 
-Le client mobile utilise aussi HTTP/JSON. L’accès PostgreSQL reste interne au backend.
+L’accès PostgreSQL reste interne au backend.
 
 La documentation API est répartie entre deux documents :
 
-- [api.md](api.md) : endpoints, méthodes HTTP, données échangées, traitements et règles métier.
-- [api-review.md](api-review.md) : réponses HTTP de chaque endpoint, situations de succès ou d’erreur et points à valider.
+- [api.md](api.md) : vue d’ensemble des opérations et des parcours.
+- [api-review.md](api-review.md) : justification des réponses HTTP et points à valider.
+
+Les [guides par ressource](../openapi/architecture-api.md#se-repérer) expliquent les JSON et les particularités métier. Les YAML sources restent la référence contractuelle.
 
 Les requêtes Bruno du TP1 explorent httpbin et HAPI FHIR. Elles ne constituent pas le contrat de Veillo et n’imposent pas FHIR comme format métier.
 
@@ -37,6 +39,12 @@ Le MCD, réalisé avec Mocodo, comporte **6 entités et 8 associations**. Aucune
 - [MPD : colonnes et types PostgreSQL](images/Sch%C3%A9ma%20MPD%20relationnel%20Veillo.png).
 
 Ces modèles décrivent la conception. L’existence des tables sur un poste se vérifie dans PostgreSQL et dans l’historique des migrations.
+
+### Relations entre les données
+
+Une clé étrangère garantit qu’une référence cible une ligne existante. Dans le MPD, Consentement référence Patient et Soignant.
+
+Une table de jointure représente une relation plusieurs-à-plusieurs. `SUIVRE` relie ainsi les patients à leurs soignants, sans devenir automatiquement une ressource HTTP.
 
 ### Diagramme de classes Mermaid
 
@@ -239,7 +247,7 @@ Là où il est exigé : absence ou retrait → `404` en accès direct, exclusion
 
 - **Requêtes conditionnelles retenues :** `GET` individuel du seuil avec `ETag`, `If-Match` obligatoire sur le `PATCH` (`412`, `428`) et `If-None-Match` avec `304`. L’`ETag` est un validateur fort calculé depuis la représentation, sans colonne de version.
 
-Le PATCH devra vérifier puis modifier le seuil dans une transaction avec `SELECT … FOR UPDATE`, pour empêcher une écriture concurrente pendant ce contrôle. L’index unique partiel, limité aux seuils actifs, est déjà défini dans la migration Seuils. Le calcul d’ETag et le traitement HTTP restent à implémenter : voir le [guide des seuils](../openapi/thresholds/guide.md#requêtes-conditionnelles-etag).
+La vérification du seuil et sa modification doivent rester atomiques. La transaction, le verrou `SELECT … FOR UPDATE` et l’index unique partiel sont décrits dans le [guide des seuils](../openapi/thresholds/thresholds-contract.md#requêtes-conditionnelles-etag), avec leur état d’implémentation.
 
 - Confirmer si un dépassement correspond à une valeur hors de l’intervalle `valeur_min`–`valeur_max`.
 - Préciser les modalités d’application de `actif` lors de l’évaluation des mesures. L’unicité du seuil actif est retenue ; la possibilité de conserver plusieurs seuils inactifs pour un même patient et un même type reste à préciser.
@@ -255,7 +263,7 @@ Le PATCH devra vérifier puis modifier le seuil dans une transaction avec `SELEC
 
 Les contrats documentés sont regroupés dans [api.md](api.md) (endpoints, lots et notifications) et [api-review.md](api-review.md) (réponses HTTP et cas à valider). Les points suivants restent à préciser :
 
-- Le patient d’un lot est ciblé par `patientId`, selon le [contrat Mesures](../openapi/measurements/guide.md). L’identification de l’émetteur et son autorisation sur ce patient restent à définir, avec les modalités de sécurité de la section 7. Le MCD ne contient pas d’entité dédiée aux comptes.
+- Le patient d’un lot est ciblé par `patientId`, selon le [contrat Mesures](../openapi/measurements/measurements-contract.md). L’identification de l’émetteur et son autorisation sur ce patient restent à définir, avec les modalités de sécurité de la section 7. Le MCD ne contient pas d’entité dédiée aux comptes.
 - L’ordre et les garanties entre stockage des mesures, évaluation des seuils et création des alertes.
-- Compléter la traduction du modèle en Entities et migrations PostgreSQL. Le SQL Patients, Seuils et Consentements est préparé ; cela ne finalise pas les autres ressources ni les traitements applicatifs.
+- Compléter la traduction du modèle en Entities et traitements applicatifs, en vérifiant leur cohérence avec les migrations. Le [registre et le SQL existants](../backend/README.md#enregistrement-des-entités) ne prouvent pas que tous les parcours sont opérationnels.
 - Le webhook signé prévu par le sujet : contrat, destinataire et articulation avec le push restent à définir. Aucune livraison n’est implémentée.

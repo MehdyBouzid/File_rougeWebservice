@@ -23,14 +23,16 @@ Schemathesis peut explorer exemples, valeurs limites, données invalides et ench
 ## État actuel
 
 - Le contrat est dans [openapi/](../../openapi/) ; utiliser le [bundle généré](../../openapi/openapi.bundle.yaml), sans le modifier manuellement.
-- Les controllers métier sont encore des squelettes et la sécurité JWT n’est pas implémentée.
+- Les routes Mesures et Alertes sont codées ; Patients, Seuils et Consentements restent des squelettes. La sécurité JWT et le raccordement des contrôles d’accès restent à réaliser : voir l’[état du backend](../../backend/README.md).
 - Les tests Jest existent, mais `test:integration` peut réussir sans test grâce à `--passWithNoTests`. Un code `0` ne suffit donc pas à prouver une couverture.
 - Aucun workflow GitHub Actions ni suite Schemathesis dédiée n’est versionné. Les essais consignés utilisent Docker.
 - Les résultats et limites Prism/Bruno sont dans [mock-prism.md](../mock-prism.md#résultats-et-preuves).
 
+Le backend [contrôle déjà ses réponses JSON](../../backend/README.md#validation-openapi-des-réponses) avec `express-openapi-validator`. Schemathesis complète ce contrôle depuis l’extérieur : il peut générer des requêtes, examiner les headers et révéler des chemins non couverts par les tests écrits à la main. Il ne garantit pas les règles métier non exprimées dans OpenAPI.
+
 ## Préparer les outils
 
-Depuis la racine, régénérer et valider le bundle avec les [commandes TP3](../outillage-tp3.md#1-génération-du-bundle-et-validation-spectral).
+Depuis la racine, suivre le [guide du bundle](../../openapi/bundle.md#générer-et-mettre-à-jour) pour le régénérer puis le valider.
 
 Schemathesis s’utilise via Docker, sans installation Python locale :
 
@@ -40,7 +42,7 @@ docker run --rm schemathesis/schemathesis:stable --version
 
 L’image locale utilisée affiche `4.33.4` ; l’aide `run --help` a été consultée. Le tag `stable` peut évoluer lors d’un prochain téléchargement.
 
-Les essais du parent et du bundle après réorganisation sont consignés dans les [résultats du refactoring](../outillage-tp3.md#vérification-du-refactoring-par-ressource). Ils portent sur Prism, pas sur le backend métier.
+Les essais du parent et du bundle après réorganisation sont consignés dans les [résultats du mock](../mock-prism.md#vérification-du-refactoring-par-ressource). Ils portent sur Prism, pas sur le backend métier.
 
 Sur Docker Desktop (Mac et Windows), `host.docker.internal` permet au conteneur de joindre un service lancé sur l’hôte. Les commandes multi-lignes ci-dessous utilisent la syntaxe Bash.
 
@@ -124,7 +126,7 @@ Le Compose habituel démarre la base de développement, pas une base de test iso
 
 1. **Démarrer l’environnement** avec `docker compose up -d --build` et vérifier le port publié avec `docker compose ps`, selon [docker.md](../docker.md).
 2. **Joindre le backend.** Pour le port hôte par défaut : `--url http://host.docker.internal:3000`. Autre piste : ajouter `--network veillo_veillo` au `docker run` et utiliser `--url http://backend:3000`. Ces deux parcours Schemathesis restent **non testés**.
-3. **Commencer par une lecture**, par exemple `--include-operation-id listPatients --mode positive --phases examples,coverage`, puis les opérations d’écriture disponibles.
+3. **Commencer par une lecture implémentée**, par exemple `--include-operation-id listAlerts --mode positive --phases examples,coverage`, puis les opérations d’écriture disponibles.
 4. **Explorer les données invalides** en retirant `--mode positive`. Vérifier notamment le `400` prévu pour les propriétés inconnues des requêtes de seuils.
 5. **Tester la sécurité** lorsque JWT sera implémenté, avec les identités, scopes et objets de test adaptés. Réactiver `ignored_auth` et examiner `object_level_authorization`.
 6. **Élargir les phases** en retirant `--phases` : exemples, couverture, fuzzing et tests à état.
