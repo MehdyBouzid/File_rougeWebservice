@@ -146,7 +146,7 @@ Ne pas partager une réponse privée entre utilisateurs ni exposer de donnée de
 
 ## Ce qui reste à développer
 
-Les fichiers de [common/cache/](../../backend/src/common/cache/README.md) préparent le travail d’Elamine sur l’`ETag` et `If-None-Match` : aucun utilitaire n’est encore implémenté. `If-Match` et l’écriture du PATCH restent aussi à développer, puis à raccorder.
+Le [guide d’implémentation](../../backend/src/common/cache/cache-implementation.md) indique où développer les utilitaires, leurs tests et leur raccordement. Aucun utilitaire n’est encore implémenté ; `If-Match` et l’écriture du PATCH restent aussi à développer.
 
 Le [guide des seuils](../thresholds/thresholds-contract.md#requêtes-conditionnelles-etag) décrit la transaction prévue, le verrou de ligne et l’index unique partiel. Leur rôle est distinct : l’`ETag` protège l’état lu, l’index protège l’unicité du seuil actif.
 

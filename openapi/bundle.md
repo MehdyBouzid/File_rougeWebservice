@@ -40,7 +40,7 @@ Modifier les sources → régénérer → valider → relire le diff
 
 - **Spectral** vérifie le bundle avec les règles de Veillo : voir le [guide Spectral](spectral.md).
 - **NestJS** utilise `express-openapi-validator` pour contrôler les réponses JSON à partir du bundle. Les garanties et limites sont dans le [guide backend](../backend/README.md#validation-openapi-des-réponses).
-- **Schemathesis** utilise le bundle dans les commandes documentées pour générer ses tests : voir le [guide de test](../docs/tests/schemathesis.md). Des essais sur le parent existent aussi.
+- **Schemathesis** utilise le bundle dans les commandes documentées pour générer ses tests : voir le [guide de test](schemathesis/schemathesis.md). Des essais sur le parent existent aussi.
 
 **Prism charge directement le parent et ses références** avec la commande actuelle. Il n’a pas besoin du bundle. Bruno envoie ensuite ses requêtes à Prism ; il ne lit pas le contrat.
 

@@ -5,7 +5,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { ProblemDetailsFilter } from './problem-details.filter';
+import { ProblemDetailsFilter } from '../../../../src/common/http/problem-details.filter';
 
 describe('ProblemDetailsFilter', () => {
   function createHost(url = '/alerts', method = 'GET') {

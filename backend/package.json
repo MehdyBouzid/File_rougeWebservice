@@ -15,9 +15,9 @@
     "start:prod": "node dist/main",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "test": "npm run test:unit && npm run test:integration && npm run test:e2e",
-    "test:unit": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
+    "test:unit": "jest --config ./test/jest-unit.json",
+    "test:watch": "jest --config ./test/jest-unit.json --watch",
+    "test:cov": "jest --config ./test/jest-unit.json --coverage",
     "test:integration": "jest --config ./test/jest-integration.json --passWithNoTests",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "persistence:sync": "node scripts/sync-feature-entities.mjs",
@@ -26,14 +26,14 @@
     "prestart": "npm run persistence:sync",
     "prestart:dev": "npm run persistence:sync",
     "pretest": "npm run persistence:sync",
-    "test:infrastructure": "node --test scripts/*.test.mjs",
+    "test:infrastructure": "node --test test/integration/scripts/*.test.mjs",
     "migration:generate": "node scripts/migrations.mjs generate",
     "migration:show": "node scripts/migrations.mjs show",
     "migration:run": "node scripts/migrations.mjs run",
     "migration:check": "node scripts/migrations.mjs check",
     "migration:create": "node scripts/migrations.mjs create",
     "migration:revert": "node scripts/migrations.mjs revert",
-    "test:migrations:postgres": "node scripts/test-migrations-postgres.mjs"
+    "test:migrations:postgres": "node test/integration/persistence/test-migrations-postgres.mjs"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -50,6 +50,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.18.0",
+    "@jest/globals": "^30.0.0",
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
@@ -68,22 +69,5 @@
     "ts-jest": "^29.2.5",
     "typescript": "^5.7.3",
     "typescript-eslint": "^8.20.0"
-  },
-  "jest": {
-    "moduleFileExtensions": [
-      "js",
-      "json",
-      "ts"
-    ],
-    "rootDir": "src",
-    "testRegex": ".*\\.spec\\.ts$",
-    "transform": {
-      "^.+\\.(t|j)s$": "ts-jest"
-    },
-    "collectCoverageFrom": [
-      "**/*.(t|j)s"
-    ],
-    "coverageDirectory": "../coverage",
-    "testEnvironment": "node"
   }
 }

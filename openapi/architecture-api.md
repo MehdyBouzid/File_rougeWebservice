@@ -15,6 +15,7 @@ openapi/
 ├── consents/               # Consentements : consultation et retrait
 ├── caregivers/             # Guide Soignant ; aucun endpoint dédié en V1
 ├── cache/                  # ETag et requêtes conditionnelles des seuils
+├── schemathesis/           # Tests contractuels : guide et configuration
 ├── security/               # Authentification commune
 ├── common/                 # Définitions utilisées par plusieurs ressources
 ├── architecture-api.md     # Ce guide
@@ -25,7 +26,7 @@ openapi/
 └── openapi.bundle.yaml     # Contrat regroupé, généré
 ```
 
-Guides métier : [Mesures](measurements/measurements-contract.md), [Patients](patients/patients-contract.md), [Seuils](thresholds/thresholds-contract.md), [Alertes](alerts/alerts-contract.md), [Consentements](consents/consents-contract.md) et [Soignant](caregivers/caregivers-contract.md). Le [guide Cache](cache/cache-contract.md) décrit les échanges conditionnels.
+Guides métier : [Mesures](measurements/measurements-contract.md), [Patients](patients/patients-contract.md), [Seuils](thresholds/thresholds-contract.md), [Alertes](alerts/alerts-contract.md), [Consentements](consents/consents-contract.md) et [Soignant](caregivers/caregivers-contract.md). Le [guide Cache](cache/cache-contract.md) décrit les échanges conditionnels. Le [guide Schemathesis](schemathesis/schemathesis.md) prépare les tests contractuels, avec la configuration [schemathesis.toml](schemathesis/schemathesis.toml).
 
 ## Dans une ressource
 

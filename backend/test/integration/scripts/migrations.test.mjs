@@ -11,7 +11,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { checkMigrationFiles } from './migrations.mjs';
+import { checkMigrationFiles } from '../../../scripts/migrations.mjs';
 
 async function folder() {
   return mkdtemp(join(tmpdir(), 'veillo-migration-test-'));
@@ -64,7 +64,7 @@ test('crée une migration TypeORM dans un espace temporaire, sans base ni fichie
   await mkdir(join(root, 'scripts'));
   await mkdir(join(root, 'src/persistence/migrations'), { recursive: true });
   await cp(
-    new URL('./migrations.mjs', import.meta.url),
+    new URL('../../../scripts/migrations.mjs', import.meta.url),
     join(root, 'scripts/migrations.mjs'),
   );
   await symlink(resolve('node_modules'), join(root, 'node_modules'));

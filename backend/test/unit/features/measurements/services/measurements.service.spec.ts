@@ -4,11 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { DataSource, EntityManager, Repository } from 'typeorm';
-import type { AlertsService } from '../../alerts/services/alerts.service';
-import type { CaregiversService } from '../../caregivers/services/caregivers.service';
-import { MeasurementBatch } from '../entities/measurement-batch.entity';
-import { Measurement } from '../entities/measurement.entity';
-import { MeasurementsService } from './measurements.service';
+import type { AlertsService } from '../../../../../src/features/alerts/services/alerts.service';
+import type { CaregiversService } from '../../../../../src/features/caregivers/services/caregivers.service';
+import { MeasurementBatch } from '../../../../../src/features/measurements/entities/measurement-batch.entity';
+import { Measurement } from '../../../../../src/features/measurements/entities/measurement.entity';
+import { MeasurementsService } from '../../../../../src/features/measurements/services/measurements.service';
 
 const PATIENT_ID = '22222222-2222-4222-8222-222222222222';
 const CAREGIVER_ID = '11111111-1111-4111-8111-111111111111';

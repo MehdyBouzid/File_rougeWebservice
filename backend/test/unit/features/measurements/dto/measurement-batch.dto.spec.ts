@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
-import { createGlobalValidationPipe } from '../../../validation.pipe';
-import { ListMeasurementsQueryDto } from './list-measurements-query.dto';
-import { MeasurementBatchDto } from './measurement-batch.dto';
+import { createGlobalValidationPipe } from '../../../../../src/validation.pipe';
+import { ListMeasurementsQueryDto } from '../../../../../src/features/measurements/dto/list-measurements-query.dto';
+import { MeasurementBatchDto } from '../../../../../src/features/measurements/dto/measurement-batch.dto';
 
 describe('DTOs Mesures — validation', () => {
   const pipe = createGlobalValidationPipe();

@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { syncFeatureEntities } from './sync-feature-entities.mjs';
+import { syncFeatureEntities } from '../../../scripts/sync-feature-entities.mjs';
 
 async function fixture(t) {
   const root = await mkdtemp(join(tmpdir(), 'veillo-entities-'));

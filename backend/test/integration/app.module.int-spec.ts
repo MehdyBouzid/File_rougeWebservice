@@ -1,8 +1,8 @@
 import { Global, Module } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { DataSource } from 'typeorm';
-import { AppModule } from './app.module';
-import { DatabaseModule } from './persistence/database.module';
+import { AppModule } from '../../src/app.module';
+import { DatabaseModule } from '../../src/persistence/database.module';
 
 // Ce test vérifie l’assemblage NestJS sans demander une connexion PostgreSQL.
 const stubDataSource = {

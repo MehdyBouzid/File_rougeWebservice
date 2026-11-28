@@ -198,6 +198,17 @@ L’API devra appliquer les règles suivantes, que le MCD ne suffit pas à expri
 - **Consentement :** relier un patient et un soignant et vérifier sa validité lors des consultations concernées. Son retrait empêche immédiatement les accès concernés.
 - **Accès aux mesures :** un soignant doit posséder les droits nécessaires, suivre le patient et disposer d’un consentement valide de ce patient.
 
+### Cache HTTP des seuils : décisions retenues
+
+Ces décisions sont retenues dans le contrat ; le cache et les routes Seuils restent à implémenter. Le [contrat du cache](../openapi/cache/cache-contract.md) détaille les échanges.
+
+- **Périmètre :** le `GET` individuel, le `POST` et le `PATCH` d’un seuil renvoient un `ETag`. La liste des seuils n’en a pas pour l’instant.
+- **Validateur :** `ETag` fort calculé depuis la représentation, sans colonne de version.
+- **Lecture :** `If-None-Match` est accepté sur le `GET` individuel, avec une comparaison faible ; une correspondance donne `304` sans corps.
+- **Modification :** `If-Match` est obligatoire sur le `PATCH`, avec une comparaison forte ; son absence donne `428`, une valeur périmée `412`.
+- **Ordre des contrôles :** `401 → 403 → 404 → 428 → 412 → 400 ou 409`.
+- **Atomicité :** la vérification du seuil et sa modification doivent rester atomiques. La transaction, le verrou `SELECT … FOR UPDATE` et l’index unique partiel sont décrits dans le [guide des seuils](../openapi/thresholds/thresholds-contract.md#requêtes-conditionnelles-etag), avec leur état d’implémentation.
+
 ## 7. Sécurité
 
 **Choix retenu : OAuth 2.0 avec des jetons d’accès JWT.** Les scopes seront distincts pour les montres, les patients et les soignants.
@@ -243,11 +254,17 @@ Là où il est exigé : absence ou retrait → `404` en accès direct, exclusion
 
 **Écart à arbitrer :** le sujet exige le consentement à chaque accès concerné, mais plusieurs contrats le laissent conditionnel. Le PATCH d’alerte retourne notamment le même détail que le GET protégé. Ces passages ne constituent pas une autorisation d’accès sans consentement ; les contrats restent à harmoniser, sans modifier leurs droits ici.
 
+### Cache HTTP des seuils
+
+Les [décisions retenues](#cache-http-des-seuils--décisions-retenues) sont dans les règles métier. Restent à valider :
+
+- l’algorithme de l’`ETag` et la sérialisation canonique, dont la normalisation des nombres ;
+- le traitement de `If-Match: *` et des en-têtes mal formés ;
+- la politique `Cache-Control`, qui doit tenir compte du retrait du consentement ;
+- le contrôle du consentement, y compris dans la transaction du `PATCH` ;
+- les solutions techniques pour l’`ETag` ajouté par défaut par Express et pour l’ordre des erreurs face au `ValidationPipe`, décrits dans le [guide d’implémentation](../backend/src/common/cache/cache-implementation.md#risques-à-traiter-avant-le-raccordement).
+
 ### Seuils
-
-- **Requêtes conditionnelles retenues :** `GET` individuel du seuil avec `ETag`, `If-Match` obligatoire sur le `PATCH` (`412`, `428`) et `If-None-Match` avec `304`. L’`ETag` est un validateur fort calculé depuis la représentation, sans colonne de version.
-
-La vérification du seuil et sa modification doivent rester atomiques. La transaction, le verrou `SELECT … FOR UPDATE` et l’index unique partiel sont décrits dans le [guide des seuils](../openapi/thresholds/thresholds-contract.md#requêtes-conditionnelles-etag), avec leur état d’implémentation.
 
 - Confirmer si un dépassement correspond à une valeur hors de l’intervalle `valeur_min`–`valeur_max`.
 - Préciser les modalités d’application de `actif` lors de l’évaluation des mesures. L’unicité du seuil actif est retenue ; la possibilité de conserver plusieurs seuils inactifs pour un même patient et un même type reste à préciser.

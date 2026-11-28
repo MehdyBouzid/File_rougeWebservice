@@ -22,10 +22,6 @@ La règle standard `oas3-operation-security-defined` est désactivée. Elle atte
 
 La règle locale `security-roles-known` vérifie seulement les trois noms autorisés. Elle ne valide ni OAuth ni les permissions réelles.
 
-**Essai historique :** une configuration avec `authorizationCode`, `clientCredentials` et des URL fictives avait passé Redocly, Spectral et Prism. Une fois réactivée, la règle standard détectait un scope inconnu.
-
-Cet essai ne valide pas ces flux ni un fournisseur OAuth pour Veillo.
-
 ## Lancer les vérifications
 
 **Prérequis :** Node.js 22, npm avec `npx` et un terminal ouvert à la racine du dépôt. Le premier téléchargement des outils peut nécessiter un accès réseau.
@@ -55,4 +51,4 @@ Exemples :
 
 Corriger selon les décisions du contrat. Si une valeur ou un comportement reste à décider, demander sa validation avant de l’ajouter.
 
-Les [résultats déjà consignés](../docs/outillage-tp3.md#résultats-déjà-consignés) sont des preuves historiques, pas le résultat d’un nouveau lint.
+Les [résultats déjà consignés](../docs/outillage-tp3.md#vérifications-consignées) indiquent le périmètre des validations passées. Relancer le lint après chaque modification.

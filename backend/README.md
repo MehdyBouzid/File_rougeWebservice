@@ -93,13 +93,9 @@ Les réponses ne sont ni corrigées ni nettoyées automatiquement. Les écarts e
 
 **Bundle et Docker :** régénérer puis valider le fichier après une modification des sources selon le [guide du bundle](../openapi/bundle.md#générer-et-mettre-à-jour). Compose le monte en lecture seule dans `/openapi/openapi.bundle.yaml` ; il n’est pas inclus dans l’image seule.
 
-Les [tests HTTP ciblés](test/e2e/openapi-responses.e2e-spec.ts) utilisent le vrai bundle et des Controllers réservés aux tests, sans PostgreSQL :
+Les [tests HTTP ciblés](test/e2e/openapi-responses.e2e-spec.ts) utilisent le vrai bundle et des Controllers réservés aux tests, sans PostgreSQL. La [commande ciblée](../docs/tests/test-commands.md#cibler-un-fichier) est centralisée dans le guide des commandes de test.
 
-```bash
-npm --prefix backend run test:e2e -- --runInBand openapi-responses.e2e-spec.ts
-```
-
-Ils vérifient les réponses conformes ou invalides, les erreurs RFC 9457, les routes non documentées et le passage des réponses `204/304` sans corps. Ils ne prouvent ni les autorisations ni l’ordre métier des contrôles. [Schemathesis](../docs/tests/schemathesis.md) reste complémentaire pour tester le backend de l’extérieur.
+Ils vérifient les réponses conformes ou invalides, les erreurs RFC 9457, les routes non documentées et le passage des réponses `204/304` sans corps. Ils ne prouvent ni les autorisations ni l’ordre métier des contrôles. [Schemathesis](../openapi/schemathesis/schemathesis.md) reste complémentaire pour tester le backend de l’extérieur.
 
 **Limites vérifiées ou relevées dans la bibliothèque :**
 
@@ -109,7 +105,7 @@ Ils vérifient les réponses conformes ou invalides, les erreurs RFC 9457, les r
 - Le hook JSON natif ignore les réponses `5xx`. Le filtre produit néanmoins un `500` RFC 9457 lorsqu’une autre réponse échoue à la validation.
 - Aucun contrôle de suivi, de consentement, de transaction ou d’ordre des erreurs n’est fourni.
 
-**Essai du 26 novembre 2026 :** 16 tests ciblés réussis. L’image Docker a été construite ; un conteneur temporaire a vérifié le bundle, un `200` conforme, un JSON invalide bloqué en `500` RFC 9457 et une route absente en `404` RFC 9457. Ce module technique n’accède pas à PostgreSQL et ne prouve pas le fonctionnement métier du backend complet.
+**Vérifications consignées :** 16 tests ciblés réussis. L’image Docker a été construite ; un conteneur temporaire a vérifié le bundle, un `200` conforme, un JSON invalide bloqué en `500` RFC 9457 et une route absente en `404` RFC 9457. Ce module technique n’accède pas à PostgreSQL et ne prouve pas le fonctionnement métier du backend complet.
 
 ## Erreurs HTTP
 
@@ -171,32 +167,8 @@ La configuration partagée conserve `synchronize: false` et `migrationsRun: fals
 
 ```bash
 npm --prefix backend run build
-npm --prefix backend test
-npm --prefix backend run test:infrastructure
 ```
 
-Ces commandes doivent terminer sans erreur. Examiner les suites et le nombre de tests : `test:integration` utilise `--passWithNoTests` et peut réussir sans test métier.
+Les tests sont centralisés dans [test/](test/), selon l’[architecture backend](architecture-backend.md#organisation-des-fichiers). Consulter les [commandes de test](../docs/tests/test-commands.md) pour lancer les suites, cibler un fichier et connaître leurs prérequis et leurs limites.
 
-Des tests unitaires couvrent les DTO, Controllers et Services de Mesures et Alertes, ainsi que le service Soignants et le filtre d’erreurs. Les tests du socle remplacent le module de connexion et les tests de Services utilisent des doubles de persistance : ils ne prouvent pas le fonctionnement avec PostgreSQL.
-
-Le dossier `test/integration/` ne contient encore qu’un `.gitkeep`. Les tests d’écriture sur le backend nécessiteront une base isolée ; voir [Schemathesis](../docs/tests/schemathesis.md#passer-au-backend-nestjs).
-
-## Consultation et preuves historiques
-
-Les commandes suivantes ont été consignées dans un audit antérieur comme consultations sans changement de données. Elles n’ont pas été rejouées pour cette révision :
-
-```bash
-docker compose config --quiet
-docker compose ps -a
-docker compose logs --tail=30 backend postgres
-docker compose exec -T backend sh -c 'pwd; node --version'
-docker compose exec -T -e PGOPTIONS='-c default_transaction_read_only=on' postgres sh -c 'exec psql -X -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB" -c "\l" -c "\dt public.*"'
-npm --prefix backend run migration:check
-docker compose exec -T -e PGOPTIONS='-c default_transaction_read_only=on' backend npm run migration:show
-```
-
-`exec backend` nécessite un conteneur backend démarré et une image à jour. Un ancien audit utilisait une image sans migrations compilées : un statut vide ne prouve pas l’absence de fichiers sources.
-
-En lecture seule, TypeORM peut échouer si l’historique `veillo_migrations` n’existe pas encore et qu’il tente de le créer. Les commandes usuelles et leurs prérequis figurent dans le [guide Docker](../docs/docker.md#10-état-actuel-et-limites).
-
-Aucun démarrage, arrêt, build, test applicatif ou migration n’a été exécuté pendant cette révision documentaire.
+Le [guide d’intégration TP5](../docs/tests/integration-testing.md) explique quoi tester et comment isoler les données. [Schemathesis](../openapi/schemathesis/schemathesis.md) explique la vérification de conformité au contrat OpenAPI. Les tests métier avec persistance et la CI restent à développer.

@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import { DataSource } from 'typeorm';
 
 const require = createRequire(import.meta.url);
-const options = require('../dist/persistence/data-source.js').default.options;
+const options = require('../../../dist/persistence/data-source.js').default.options;
 const database = `veillo_migrations_test_${Date.now()}`;
 const admin = new DataSource({ ...options, migrations: [] });
 let isolated;
@@ -50,7 +50,7 @@ try {
   });
   await mkdir(join(workspace, 'scripts'));
   await cp(
-    new URL('./migrations.mjs', import.meta.url),
+    new URL('../../../scripts/migrations.mjs', import.meta.url),
     join(workspace, 'scripts/migrations.mjs'),
   );
   await cp(resolve('package.json'), join(workspace, 'package.json'));
