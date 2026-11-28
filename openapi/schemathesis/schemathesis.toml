@@ -1,0 +1,6 @@
+# Configuration native Schemathesis 4.33.4.
+# Le contrat, la cible et les paramètres d’authentification sont fournis à l’exécution.
+# Ne pas appliquer les exclusions du mock aux tests du backend réel.
+
+[checks.response_schema_conformance]
+enabled = true

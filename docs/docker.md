@@ -178,12 +178,6 @@ Un statut vide dans une ancienne image ne signifie pas que les sources sont vide
 docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migration-tools npm run migration:run
 ```
 
-Avec un backend démarré et une image reconstruite, l’équivalent existant est :
-
-```bash
-docker compose exec backend npm run migration:run
-```
-
 ### Exécuter uniquement Patient
 
 Exemple ciblé, depuis la racine, avec PostgreSQL démarré :
@@ -194,7 +188,7 @@ docker compose -f compose.yaml -f compose.migrations.yaml run --rm --build migra
 
 Cette commande conserve la connexion et l’historique configurés. Elle sélectionne uniquement Patient et l’applique dans une transaction si elle n’est pas déjà enregistrée ; aucune autre migration n’est exécutée.
 
-Le script npm standard ne sélectionne pas une migration par nom. Cet exemple adapte seulement la sélection en mémoire, sans modifier les fichiers du projet. Il a été vérifié par lecture du code et n’a pas été exécuté pendant cette révision.
+Le script npm standard ne sélectionne pas une migration par nom. Cet exemple adapte seulement la sélection en mémoire, sans modifier les fichiers du projet. Sa sélection a été vérifiée par lecture du code ; ce n’est pas une preuve d’exécution.
 
 ### Travailler à deux
 
@@ -211,6 +205,8 @@ Le retour arrière demande de relire `down()` et les dépendances : retirer une 
 
 ## Vérifications et limites
 
-Les commandes ont été confrontées aux fichiers Compose, au Dockerfile, aux scripts npm et à la configuration TypeORM. Les lectures d’environnement consignées dans le [README du backend](../backend/README.md#consultation-et-preuves-historiques) proviennent d’un audit antérieur.
+Les commandes correspondent aux fichiers Compose, au Dockerfile, aux scripts npm et à la configuration TypeORM. Elles n’ont pas été rejouées pour ce nettoyage documentaire.
 
-Aucune commande Docker, migration ou requête PostgreSQL n’a été exécutée pendant cette révision documentaire. L’état réellement appliqué doit être vérifié sur la base de chaque développeur.
+- Vérifier l’état appliqué sur la base de chaque développeur ; les sources SQL ne prouvent pas leur exécution.
+- Utiliser une image à jour : un statut vide avec des migrations non compilées ne prouve pas leur absence des sources.
+- En lecture seule, TypeORM peut échouer si `veillo_migrations` manque et qu’il tente de créer cet historique.

@@ -1,6 +1,6 @@
 import type { DataSource, Repository } from 'typeorm';
-import type { Caregiver } from '../entities/caregiver.entity';
-import { CaregiversService } from './caregivers.service';
+import type { Caregiver } from '../../../../../src/features/caregivers/entities/caregiver.entity';
+import { CaregiversService } from '../../../../../src/features/caregivers/services/caregivers.service';
 
 const CAREGIVER_ID = '11111111-1111-4111-8111-111111111111';
 const PATIENT_ID = '22222222-2222-4222-8222-222222222222';

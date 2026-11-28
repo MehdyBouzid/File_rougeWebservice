@@ -60,9 +60,9 @@ Le détail du contrôle du consentement reste à harmoniser sur certaines opéra
 
 ## 2. Équipe
 
-- **Mehdy** : Architecture globale, contrats API et développement du backend NestJS/TypeScript.
-- **Ethan** : Docker et conteneurisation.
-- **Elamine** : Tests d'intégration.
+- **Mehdy** : Conception globale, contrats API et backend Patients, Consentements et Seuils.
+- **Ethan** : Backend Mesures, Alertes et Soignants, Docker et conteneurisation.
+- **Elamine** : Cache HTTP, tests d’intégration et préparation de Schemathesis.
 - **Egor** : IoT et développement du simulateur de montres connectées.
 
 ## 3. Architecture et technologies
@@ -110,7 +110,7 @@ Repères principaux (arborescence abrégée) :
 ├── backend/                   # API NestJS, persistance et tests
 ├── bruno/                     # Exercices TP1 et requêtes du mock TP3
 ├── docs/
-│   ├── tests/                 # Guide de préparation Schemathesis
+│   ├── tests/                 # Tests d’intégration et commandes de test
 │   ├── images/                # MCD, MLD, MPD, diagramme REST et captures
 │   ├── design.md              # Architecture, MCD et décisions
 │   ├── api.md                 # Opérations et règles API
@@ -126,6 +126,7 @@ Repères principaux (arborescence abrégée) :
 │   ├── common/                # Définitions partagées
 │   ├── security/              # Authentification
 │   ├── cache/                 # Contrat du cache HTTP des seuils
+│   ├── schemathesis/          # Tests contractuels : guide et configuration
 │   ├── architecture-api.md    # Navigation et responsabilités
 │   ├── bundle.md              # Génération du contrat regroupé
 │   ├── spectral.md            # Lint et règles du contrat
@@ -196,8 +197,6 @@ Le TP1 a permis d’apprendre à utiliser une API externe et à comprendre les �
 - [Seuils](openapi/thresholds/thresholds-contract.md) : JSON de création et de modification, bornes, unicité et préconditions HTTP.
 - [Soignants](openapi/caregivers/caregivers-contract.md) : rôle dans le suivi et les accès ; justification de l’absence d’endpoint dédié en V1.
 
-Consigne complémentaire du support de cours : fonction principale `nommerRessourcePilote`, référence à la note interne **NC-102**. Cette mention ne correspond pas à une fonction actuellement implémentée ; la nécessité de son implémentation reste à vérifier dans le support.
-
 ## 7. TP3 — Contrat OpenAPI
 
 - [Architecture des contrats](openapi/architecture-api.md)
@@ -219,7 +218,9 @@ Consigne complémentaire du support de cours : fonction principale `nommerRessou
 - [Environnement Bruno du mock](bruno/environments/mock.bru) : variables à sélectionner pour envoyer les requêtes vers Prism.
 - [Documentation HTML Redocly](docs/index.html) : sortie encore vide, à générer avec les commandes du guide d’outillage.
 
-Flux : `openapi.yaml → Spectral → Prism → Bruno`
+Validation : `openapi.yaml → Redocly (bundle) → openapi.bundle.yaml → Spectral`
+
+Mock : `openapi.yaml → Prism → Bruno`
 
 ## 8. TP4 — Implémentation de l'API REST
 
@@ -243,7 +244,11 @@ Les [routes et traitements présents](backend/README.md#routes-et-traitements-pr
 
 ## 9. TP5 — Tests d’intégration et Schemathesis
 
-- [Guide Schemathesis](docs/tests/schemathesis.md)
+- [Guide des tests d’intégration](docs/tests/integration-testing.md)
+
+  *Écrire les tests métier, isoler leurs données et lancer la suite d’intégration.*
+
+- [Tests contractuels — Schemathesis](openapi/schemathesis/schemathesis.md)
 
   *Préparation des tests de contrat pour Elamine ; distingue les essais Prism, le backend et la CI prévue.*
 
@@ -251,17 +256,19 @@ Les [routes et traitements présents](backend/README.md#routes-et-traitements-pr
 
   *Suites existantes pour vérifier les échanges HTTP et les mécanismes transversaux.*
 
-- [Tests unitaires des ressources](backend/src/features/)
+- [Tests unitaires des ressources](backend/test/unit/features/)
 
-  *Tests placés à côté des DTO, Controllers et Services pour vérifier chaque composant.*
+  *Tests isolés des DTO, Controllers et Services, organisés comme le code source.*
 
-- [Tests d’intégration métier](backend/test/integration/)
+- [Tests d’intégration](backend/test/integration/)
 
-  *Emplacement encore vide destiné aux futurs scénarios avec persistance.*
+  *Tests d’assemblage et d’outillage ; les scénarios métier avec persistance restent à développer.*
 
-Les tests d’intégration métier et le workflow CI restent à développer. Les commandes et les limites des suites existantes sont décrites dans le [guide backend](backend/README.md#build-et-tests).
+- [**Commandes de test**](docs/tests/test-commands.md)
 
-  *Lancer les vérifications du backend et comprendre les limites des suites de tests.*
+  *Retrouver les commandes pour exécuter les différentes suites de tests.*
+
+Les tests d’intégration métier et le workflow CI restent à développer.
 
 ## 10. TP6 — Cache HTTP des seuils
 
@@ -279,6 +286,6 @@ Le contrat des requêtes conditionnelles est défini ; son implémentation reste
 
   *Références du cache dans les opérations HTTP concernées.*
 
-- [Guide de développement du cache](backend/src/common/cache/README.md)
+- [Guide d’implémentation du cache](backend/src/common/cache/cache-implementation.md)
 
-  *Fichiers préparés et tests à compléter dans ce dossier ; point d’entrée pour l’implémentation.*
+  *Repérer les fichiers à compléter, les tests et le raccordement aux Controllers et Services.*

@@ -8,7 +8,7 @@ Ce guide explique où modifier le contrat de Veillo, puis comment le valider et 
 
 ## Architecture des contrats OpenAPI
 
-**OpenAPI 3.1 décrit les échanges HTTP attendus** : routes, paramètres, JSON, réponses et exigences d’accès. Le contrat commun est maintenant organisé par ressource métier.
+**OpenAPI 3.1 décrit les échanges HTTP attendus** : routes, paramètres, JSON, réponses et exigences d’accès. Le contrat est organisé par ressource métier.
 
 ```text
 openapi.yaml → ressource/paths/ → ressource/components/
@@ -33,7 +33,7 @@ modifier les sources → régénérer le bundle → valider → tester
 
 Le [guide Spectral](../openapi/spectral.md) explique le lint et sa configuration. Prism charge directement le parent et ses références, comme indiqué dans la section 3.
 
-Les guides [Mesures](../openapi/measurements/measurements-contract.md), [Seuils](../openapi/thresholds/thresholds-contract.md) et [Cache](../openapi/cache/cache-contract.md) précisent les échanges. `patientId`, `batchId` et au moins un relevé sont obligatoires ; formats d’identifiants, unités, bornes et autorisations du simulateur restent ouverts.
+Pour les échanges et les décisions encore ouvertes, consulter les contrats [Mesures](../openapi/measurements/measurements-contract.md), [Seuils](../openapi/thresholds/thresholds-contract.md) et [Cache](../openapi/cache/cache-contract.md).
 
 Conserver la cohérence avec [design.md](design.md), [api.md](api.md) et [api-review.md](api-review.md). Une réorganisation des fichiers ne valide aucune décision métier ou OAuth encore ouverte.
 
@@ -92,27 +92,16 @@ npx @usebruno/cli run tp3-mock --env mock
 
 Les [cas testés, assertions et limites](mock-prism.md#ce-que-couvrent-les-requêtes-actuelles) sont centralisés dans le guide Prism/Bruno.
 
-## Résultats déjà consignés
+## Vérifications consignées
 
-Ces résultats statiques sont historiques et portent sur des versions successives du contrat :
+Le découpage par ressource a été vérifié après résolution des références : **13 opérations, 19 schémas et contrat fonctionnellement équivalent**. Les huit exemples de corps ont été conservés et référencés.
 
-- **Spectral :** 0 erreur et 0 avertissement après découpage, avant les évolutions Mesures et Alertes.
-- **Redocly :** 0 erreur et 2 avertissements : licence absente (`info-license`) et serveur local (`no-server-example.com`).
+Redocly et Spectral n’ont signalé aucune erreur. Les avertissements relevés concernent la licence absente, le serveur local et `AlertSummary` non référencé.
 
-Un essai antérieur de relecture n’avait exécuté ni nouveau lint ni essai HTTP ; seules les aides des CLI Prism et Bruno avaient été consultées.
-
-## Vérification du refactoring par ressource
-
-Le 25 novembre 2026, le découpage par ressource a été vérifié :
-
-- **Équivalence :** mêmes 13 opérations, 19 schémas et définitions d’origine après résolution des références. Les bundles avant/après sont fonctionnellement équivalents.
-- **Exemples :** les huit corps initialement déclarés avec `example` utilisent désormais des `examples` référencés. Leurs valeurs sont inchangées.
-- **Redocly et Spectral :** aucune erreur. Les avertissements préexistants restent présents : licence absente, serveur local et `AlertSummary` non référencé.
-
-Les [essais HTTP avant/après et Schemathesis](mock-prism.md#vérification-du-refactoring-par-ressource) sont conservés avec les preuves du mock. Ils ne prouvent pas le fonctionnement métier de NestJS.
+Ces résultats ne sont pas une validation des évolutions suivantes du contrat. Les [preuves HTTP sur Prism et Bruno](mock-prism.md#résultats-et-preuves) précisent les essais et leurs limites ; aucun ne prouve le fonctionnement métier de NestJS.
 
 ## Validation à l’exécution dans NestJS
 
 Spectral et Redocly vérifient les fichiers. Le backend utilise séparément [express-openapi-validator](../backend/README.md#validation-openapi-des-réponses) pour contrôler les réponses JSON émises à partir du bundle.
 
-Les requêtes restent validées par les DTO. Les options, tests réalisés et limites du contrôle des réponses sont décrits dans le guide backend ; [Schemathesis](tests/schemathesis.md) vérifie les échanges depuis l’extérieur.
+Les requêtes restent validées par les DTO. Les options, tests réalisés et limites du contrôle des réponses sont décrits dans le guide backend ; [Schemathesis](../openapi/schemathesis/schemathesis.md) vérifie les échanges depuis l’extérieur.

@@ -80,14 +80,12 @@ Pour tester le PNG dans la requête 04, remplacer temporairement `Accept` par `i
 
 ## 5. Résultats et preuves
 
-**Résultats curl consignés :** les statuts et en-têtes décrits proviennent des réponses httpbin relevées dans le document initial. Les tailles sont historiques et peuvent varier lors d’un nouvel appel. Les anciens extraits JSON étaient raccourcis et l’adresse IP avait été retirée.
+Les résultats curl consignés décrivent les statuts et en-têtes des exercices ci-dessus. Les tailles peuvent varier ; les réponses sont résumées sans adresse IP.
 
-**Assertions disponibles dans Bruno :** neuf tests répartis sur cinq requêtes vérifient les statuts, `args.patient === "42"`, `json.frequenceCardiaque === 72`, `Content-Type: image/svg+xml` et `resourceType === "Bundle"` pour HAPI FHIR.
+**Bruno :** cinq requêtes et neuf assertions vérifient les statuts, `args.patient === "42"`, `json.frequenceCardiaque === 72`, `Content-Type: image/svg+xml` et `resourceType === "Bundle"` pour HAPI FHIR.
 
-**Résultat historique déclaré :** cinq requêtes et neuf assertions réussies dans Bruno. Les requêtes et tests sont versionnés, sans rapport confirmant ce résultat. Les captures de [Prism](mock-prism.md#résultats-et-preuves) concernent le TP3, pas ces exercices.
+**Résultat attendu :** neuf assertions réussies, avec `200` pour les requêtes 01, 02, 04 et 05, et `404` pour la requête 03. Les services externes doivent être disponibles.
 
-**Résultat attendu lors d’une nouvelle exécution :** neuf assertions réussies, avec 200 pour les requêtes 01, 02, 04 et 05, et 404 pour la requête 03. Les services externes doivent être disponibles.
+**Portée des preuves :** le compte rendu déclare cinq requêtes et neuf assertions réussies, sans rapport versionné confirmant ce résultat. Les appels n’ont pas été rejoués pour cette révision. Le PNG est consigné avec curl ; sa vérification manuelle dans Bruno n’est pas confirmée, car les comptes rendus se contredisent. Seul le SVG y est testé automatiquement. Les captures [Prism](mock-prism.md#résultats-et-preuves) concernent le TP3.
 
-**Limite pour le PNG :** sa réponse curl est consignée, mais sa vérification manuelle dans Bruno reste contradictoire entre l’ancien compte rendu et la note de la requête 04. Aucune capture versionnée ne permet de la confirmer ; seul le SVG est testé automatiquement.
-
-Le [README](../README.md#5-tp1--initialisation-et-découverte-http) présente les livrables du TP1. Aucune requête n’a été réexécutée pour cette réorganisation.
+Le [README](../README.md#5-tp1--initialisation-et-découverte-http) présente les livrables du TP1.

@@ -1,6 +1,6 @@
 import type { Response } from 'express';
-import type { MeasurementsService } from '../services/measurements.service';
-import { MeasurementsController } from './measurements.controller';
+import type { MeasurementsService } from '../../../../../src/features/measurements/services/measurements.service';
+import { MeasurementsController } from '../../../../../src/features/measurements/controllers/measurements.controller';
 
 describe('MeasurementsController', () => {
   it('définit l’en-tête Location lors de POST /measurements', async () => {

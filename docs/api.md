@@ -155,7 +155,3 @@ Le soignant transmet les bornes ou l’état à modifier, avec au moins un champ
 L’API vérifie les accès, puis les préconditions, avant le contenu et les conflits métier. Elle valide les bornes après combinaison avec les valeurs conservées et maintient l’unicité du seuil actif. Désactiver conserve le seuil.
 
 Le [guide Seuils](../openapi/thresholds/thresholds-contract.md#modifier-un-seuil) contient les exemples et la [transaction prévue](../openapi/thresholds/thresholds-contract.md#requêtes-conditionnelles-etag). Le consentement reste à valider pour les quatre opérations Seuils.
-
-## 14. Autres endpoints
-
-Les prochains endpoints seront ajoutés progressivement en conservant cette même organisation.

@@ -27,13 +27,14 @@ backend/
 │   └── persistence/           # Connexion, registre d’Entities et migrations SQL
 ├── scripts/                   # Outillage des Entities et des migrations
 ├── test/
-│   ├── e2e/                   # Tests HTTP
-│   └── integration/           # Emplacement des tests avec plusieurs composants
+│   ├── unit/                  # Tests isolés, organisés comme src/
+│   ├── integration/           # Assemblage, scripts et contrôles PostgreSQL
+│   └── e2e/                   # Tests HTTP
 ├── Dockerfile                 # Construction de l’image backend
 └── package.json               # Dépendances et commandes npm
 ```
 
-Les tests unitaires `*.spec.ts` restent près du code testé. `dist/` contient le résultat du build : ne pas le modifier à la main.
+Les tests sont centralisés dans `test/`. Les dossiers unitaires reproduisent ceux de `src/` ; les fichiers d’intégration Jest utilisent `*.int-spec.ts` et les tests HTTP `*.e2e-spec.ts`. `dist/` contient le résultat du build : ne pas le modifier à la main.
 
 ## Modules et couches
 
@@ -79,7 +80,7 @@ Le nom du dossier ne fixe pas la route : `thresholds/` correspond aux URI `/pati
 | --- | --- | --- |
 | `common/http/` | Filtre d’erreurs RFC 9457 et liens de pagination. | [Gérer les erreurs](README.md#erreurs-http) ou [paginer une réponse](README.md#pagination). |
 | `common/validation/` et `common/types/` | Contrôles partagés et enum des types de mesure. | Réutiliser les mêmes contrôles et types entre ressources. |
-| `common/cache/` | Espace de développement du cache HTTP des seuils. | [Préparer les utilitaires et leurs tests](src/common/cache/README.md). |
+| `common/cache/` | Espace de développement du cache HTTP des seuils. | [Préparer les utilitaires et leurs tests](src/common/cache/cache-implementation.md). |
 | `persistence/` | Configuration PostgreSQL commune à NestJS et au DataSource des migrations. | [Configurer la persistance](README.md#postgresql-et-migrations). |
 
 Les migrations font évoluer le schéma ; le registre généré rend les Entities disponibles à TypeORM. **Enregistrer une Entity ne crée pas sa table.**
@@ -110,6 +111,6 @@ Ce flux ne garantit pas l’ordre des erreurs exigé par chaque opération. **La
 2. Placer les DTO et les Entities nécessaires dans la ressource. Si le schéma évolue, préparer une migration et actualiser le registre.
 3. Écrire le traitement dans le Service, avec les accès aux données et les transactions nécessaires.
 4. Raccorder le Controller, les contrôles d’accès et les réponses HTTP prévus. Vérifier les dépendances du module.
-5. Ajouter les tests adaptés et suivre les [commandes de vérification](README.md#build-et-tests). Pour les tests de contrat, consulter [Schemathesis](../docs/tests/schemathesis.md#passer-au-backend-nestjs).
+5. Ajouter les tests adaptés et suivre les [commandes de vérification](README.md#build-et-tests). Pour les tests de contrat, consulter [Schemathesis](../openapi/schemathesis/schemathesis.md#passer-au-backend-nestjs).
 
 **Les tests avec écritures réelles exigent une base isolée.** Un mock ou des doubles de persistance ne prouvent pas le fonctionnement avec PostgreSQL.

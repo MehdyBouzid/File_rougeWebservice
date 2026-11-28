@@ -29,14 +29,4 @@ Le lien entre l’identité OAuth et `SOIGNANT` reste à définir. Le Service So
 
 ## Si un profil devient nécessaire
 
-Un contrat pourra être ajouté si une fonctionnalité validée doit afficher l’identité d’un soignant. Cet exemple reste une **proposition**, sans route associée :
-
-```json
-{
-  "id": "7e9f0a21-8c34-4d65-9a72-5b2f6e810c43",
-  "nom": "Martin",
-  "prenom": "Sophie"
-}
-```
-
-`id` identifierait le soignant ; `nom` et `prenom` permettraient de l’afficher. Le nom et le format de l’identifiant ne sont pas décidés. Ne renvoyer que les données nécessaires au besoin retenu.
+Un contrat pourra être ajouté si une fonctionnalité validée doit afficher l’identité d’un soignant. Les champs et le format seront alors définis selon le besoin, en limitant les données renvoyées.

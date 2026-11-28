@@ -1,5 +1,5 @@
-import { createDatabaseOptions } from './database.config';
-import { featureEntities } from './feature-entities.generated';
+import { createDatabaseOptions } from '../../../src/persistence/database.config';
+import { featureEntities } from '../../../src/persistence/feature-entities.generated';
 
 describe('Configuration PostgreSQL', () => {
   const env = {

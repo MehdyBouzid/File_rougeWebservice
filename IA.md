@@ -31,11 +31,9 @@ L’IA nous aide à rédiger et à structurer le [README](README.md), la [concep
 
 Nous l’utilisons pour reformuler les informations que nous avons déjà, mieux les organiser et améliorer la clarté et la cohérence des documents.
 
-Codex a aussi participé aux relectures des contrats et à l’harmonisation des Markdown du dépôt. Les décisions ouvertes et les résultats historiques sont conservés ; une reformulation ne vaut pas validation métier ni preuve de test.
+Codex a participé aux relectures, au nettoyage rédactionnel et à l’organisation documentaire. Il a réorganisé les sources OpenAPI selon l’architecture validée, déplacé les guides par ressource puis renommé ceux-ci en `<ressource>-contract.md`. Les références et liens ont été actualisés.
 
-Après validation de l’audit documentaire, Codex a allégé les vues API, corrigé les anciens états d’avancement et précisé les liens entre guides, outillage et backend. Cette première révision conservait les noms des guides et les YAML ; les commandes applicatives n’avaient pas été rejouées pendant cette étape. Les guides ont ensuite été renommés en `<ressource>-contract.md`, avec mise à jour des liens, sans modification des YAML.
-
-Codex a réorganisé les sources OpenAPI et déplacé les guides par ressource, selon l’architecture validée. Les références, liens et documents de navigation ont été actualisés ; la comparaison du contrat assemblé et les validations sont distinguées des tests du backend métier.
+La comparaison du contrat assemblé et les validations des outils sont distinguées des tests du backend métier. Les déclarations d’assistance, décisions ouvertes et preuves utiles sont conservées ; une reformulation ne vaut ni validation métier ni preuve de test.
 
 ## Développement
 
@@ -68,6 +66,10 @@ Cette assistance technique ne remplace pas la relecture du SQL ni les tests mét
 Codex a branché `express-openapi-validator` sur le bundle OpenAPI, avec la configuration native validée par Mehdy. La validation des requêtes et de la sécurité reste désactivée ; les DTO, le ValidationPipe, les filtres et les règles métier sont conservés. Des tests HTTP techniques vérifient le comportement du branchement sans implémenter les fonctionnalités de l’équipe.
 
 Le premier essai a exécuté 16 tests ciblés et la suite existante, puis vérifié le branchement dans un conteneur temporaire sans accès PostgreSQL. Ces contrôles ne garantissent ni les headers sortants, ni l’ordre des contrôles métier, ni les autorisations.
+
+### Organisation des tests
+
+Codex a centralisé les tests dans `backend/test/`, adapté les imports, les configurations et les commandes, puis actualisé les liens documentaires. Les assertions et les règles métier sont conservées ; le contrôle PostgreSQL reste séparé des suites standards.
 
 ## Vérification et responsabilité
 

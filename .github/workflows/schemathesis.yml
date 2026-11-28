@@ -1,0 +1,13 @@
+# Emplacement réservé au TP5 : aucun test automatisé n’est encore implémenté.
+name: Schemathesis
+
+on: workflow_dispatch
+
+jobs:
+  schemathesis:
+    # À remplacer par un job testé avant toute activation.
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Emplacement réservé
+        run: echo "Automatisation Schemathesis à implémenter."

@@ -1,8 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
-import { createGlobalValidationPipe } from '../../../validation.pipe';
-import { AlertStatus } from '../entities/alert.entity';
-import { AlertUpdateDto } from './alert-update.dto';
-import { ListAlertsQueryDto } from './list-alerts-query.dto';
+import { createGlobalValidationPipe } from '../../../../../src/validation.pipe';
+import { AlertStatus } from '../../../../../src/features/alerts/entities/alert.entity';
+import { AlertUpdateDto } from '../../../../../src/features/alerts/dto/alert-update.dto';
+import { ListAlertsQueryDto } from '../../../../../src/features/alerts/dto/list-alerts-query.dto';
 
 describe('DTOs Alertes — validation', () => {
   const pipe = createGlobalValidationPipe();
