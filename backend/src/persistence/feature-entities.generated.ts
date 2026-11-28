@@ -3,7 +3,9 @@ import type { TypeOrmModule } from '@nestjs/typeorm';
 import { MeasurementBatch as RegisteredEntity0 } from '../features/measurements/entities/measurement-batch.entity';
 import { Measurement as RegisteredEntity1 } from '../features/measurements/entities/measurement.entity';
 import { Alert as RegisteredEntity2 } from '../features/alerts/entities/alert.entity';
-import { Caregiver as RegisteredEntity3 } from '../features/caregivers/entities/caregiver.entity';
+import { Recevoir as RegisteredEntity3 } from '../features/alerts/entities/recevoir.entity';
+import { Caregiver as RegisteredEntity4 } from '../features/caregivers/entities/caregiver.entity';
+import { Suivre as RegisteredEntity5 } from '../features/caregivers/entities/suivre.entity';
 
 type EntityRegistration = NonNullable<
   Parameters<typeof TypeOrmModule.forFeature>[0]
@@ -20,7 +22,7 @@ export const featureEntities: Record<FeatureName, EntityRegistration> = {
   patients: [],
   measurements: [RegisteredEntity0, RegisteredEntity1],
   thresholds: [],
-  alerts: [RegisteredEntity2],
+  alerts: [RegisteredEntity2, RegisteredEntity3],
   consents: [],
-  caregivers: [RegisteredEntity3],
+  caregivers: [RegisteredEntity4, RegisteredEntity5],
 };

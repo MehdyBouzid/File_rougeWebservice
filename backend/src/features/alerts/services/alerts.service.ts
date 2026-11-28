@@ -23,6 +23,7 @@ import type {
 import type { AlertUpdateDto } from '../dto/alert-update.dto';
 import type { ListAlertsQueryDto } from '../dto/list-alerts-query.dto';
 import { Alert, AlertStatus } from '../entities/alert.entity';
+import { Recevoir } from '../entities/recevoir.entity';
 
 interface ActiveThresholdRow {
   id_seuil: string;
@@ -59,7 +60,7 @@ export interface ThresholdEvaluationResult {
 }
 
 const GENERIC_PUSH_MESSAGE =
-  'Une nouvelle alerte nécessite votre attention. Connectez-vous à Veillo pour la consulter.';
+  'Une nouvelle alerte nécessite votre attention. Connectez-vous à Veillo pour la consulter .';
 
 @Injectable()
 export class AlertsService {
@@ -68,6 +69,8 @@ export class AlertsService {
   constructor(
     @InjectRepository(Alert)
     private readonly alertsRepository: Repository<Alert>,
+    @InjectRepository(Recevoir)
+    private readonly recevoirRepository: Repository<Recevoir>,
     private readonly dataSource: DataSource,
     private readonly caregiversService: CaregiversService,
   ) {}
@@ -142,24 +145,42 @@ export class AlertsService {
       });
 
     if (recipientCaregiverIds.length > 0) {
+      const recipients: Array<{ idSoignant: string; idAlerte: string }> = [];
       for (const alert of alertsToCreate) {
         for (const caregiverId of recipientCaregiverIds) {
-          await manager.query(
-            `
-              INSERT INTO public.recevoir (id_soignant, id_alerte)
-              VALUES ($1, $2)
-              ON CONFLICT (id_soignant, id_alerte) DO NOTHING
-            `,
-            [caregiverId, alert.idAlerte],
-          );
+          recipients.push({
+            idSoignant: caregiverId,
+            idAlerte: alert.idAlerte,
+          });
         }
       }
+
+      await manager
+        .getRepository(Recevoir)
+        .createQueryBuilder()
+        .insert()
+        .into(Recevoir)
+        .values(recipients)
+        .orIgnore()
+        .execute();
     }
 
     return {
       createdAlertIds: alertsToCreate.map((alert) => alert.idAlerte),
       recipientCaregiverIds,
     };
+  }
+
+  async getRecipientCaregiverIds(alertId: string): Promise<string[]> {
+    if (!isUuid(alertId)) {
+      return [];
+    }
+
+    const rows = await this.recevoirRepository.find({
+      where: { idAlerte: alertId },
+      select: { idSoignant: true },
+    });
+    return rows.map((row) => row.idSoignant);
   }
 
   notifyCaregiversOfNewAlerts(

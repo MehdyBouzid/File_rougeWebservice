@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, type EntityManager, Repository } from 'typeorm';
 import { isUuid } from '../../../common/validation/validation.utils';
 import { Caregiver } from '../entities/caregiver.entity';
+import { Suivre } from '../entities/suivre.entity';
 
 export interface PatientAccessOptions {
   requireConsent?: boolean;
@@ -20,6 +21,8 @@ export class CaregiversService {
   constructor(
     @InjectRepository(Caregiver)
     private readonly caregiversRepository: Repository<Caregiver>,
+    @InjectRepository(Suivre)
+    private readonly suivreRepository: Repository<Suivre>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -40,18 +43,22 @@ export class CaregiversService {
       return false;
     }
 
-    const rows: Array<{ exists: number }> = await this.dataSource.query(
-      `
-        SELECT 1 AS exists
-        FROM public.suivre
-        WHERE id_soignant = $1
-          AND id_patient = $2
-        LIMIT 1
-      `,
-      [caregiverId, patientId],
-    );
+    return this.suivreRepository.existsBy({
+      idSoignant: caregiverId,
+      idPatient: patientId,
+    });
+  }
 
-    return rows.length > 0;
+  async getFollowedPatientIds(caregiverId: string): Promise<string[]> {
+    if (!isUuid(caregiverId)) {
+      return [];
+    }
+
+    const rows = await this.suivreRepository.find({
+      where: { idSoignant: caregiverId },
+      select: { idPatient: true },
+    });
+    return rows.map((row) => row.idPatient);
   }
 
   async hasValidConsent(
@@ -139,22 +146,21 @@ export class CaregiversService {
       return [];
     }
 
-    const runner = options.manager ?? this.dataSource.manager;
     const onlyWithValidConsent = options.onlyWithValidConsent ?? true;
     const referenceDate = options.referenceDate ?? new Date();
 
     if (!onlyWithValidConsent) {
-      const rows: Array<{ id_soignant: string }> = await runner.query(
-        `
-          SELECT su.id_soignant
-          FROM public.suivre su
-          WHERE su.id_patient = $1
-        `,
-        [patientId],
-      );
-      return rows.map((row) => row.id_soignant);
+      const repo = options.manager
+        ? options.manager.getRepository(Suivre)
+        : this.suivreRepository;
+      const rows = await repo.find({
+        where: { idPatient: patientId },
+        select: { idSoignant: true },
+      });
+      return rows.map((row) => row.idSoignant);
     }
 
+    const runner = options.manager ?? this.dataSource.manager;
     const rows: Array<{ id_soignant: string }> = await runner.query(
       `
         SELECT DISTINCT su.id_soignant
